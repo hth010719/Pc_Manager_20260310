@@ -129,7 +129,7 @@ Swing 이용
 - UI: JavaFX
 - DB: MySQL 또는 MariaDB
 - ORM/접근: JPA 또는 MyBatis
-- 빌드: Gradle
+- 빌드: IDE(IntelliJ) 또는 javac
 - 통신: TCP Socket
 - 직렬화: JSON
 - 로깅: SLF4J + Logback
@@ -462,7 +462,7 @@ src/main/java/com/pcmanager
 
 바로 시작하려면 아래 순서로 진행한다.
 
-1. Gradle 기반 Java 프로젝트 구조 생성
+1. Java 프로젝트 구조 생성
 2. `domain`, `application`, `presentation` 패키지 생성
 3. 좌석/회원/주문/메시지 도메인 클래스 작성
 4. 메모리 기반 저장소 구현

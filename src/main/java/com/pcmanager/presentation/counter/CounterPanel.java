@@ -33,6 +33,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class CounterPanel extends JPanel {
+    private static final String NO_USER = "-";
+    private static final String REQUIRE_SEAT_MESSAGE = "먼저 좌석을 클릭해 주세요.";
+
     private final PcSocketClient socketClient;
     private final DefaultListModel<String> seatModel = new DefaultListModel<>();
     private final JList<String> seatList = new JList<>(seatModel);
@@ -136,49 +139,31 @@ public class CounterPanel extends JPanel {
     }
 
     private void addTime(int minutes) {
-        Long seatId = getSelectedSeatId();
+        Long seatId = requireSelectedSeatId();
         if (seatId == null) {
-            JOptionPane.showMessageDialog(this, "먼저 좌석을 클릭해 주세요.");
             return;
         }
-        try {
-            socketClient.extendTime(seatId, minutes);
-            refreshAll();
-        } catch (BusinessException exception) {
-            JOptionPane.showMessageDialog(this, exception.getMessage(), "시간 더하기 실패", JOptionPane.ERROR_MESSAGE);
-        }
+        executeWithRefresh("시간 더하기 실패", () -> socketClient.extendTime(seatId, minutes));
     }
 
     private void forceExit() {
-        Long seatId = getSelectedSeatId();
+        Long seatId = requireSelectedSeatId();
         if (seatId == null) {
-            JOptionPane.showMessageDialog(this, "먼저 좌석을 클릭해 주세요.");
             return;
         }
         int result = JOptionPane.showConfirmDialog(this, "정말 이 좌석을 강제로 종료할까요?", "강제 종료", JOptionPane.YES_NO_OPTION);
         if (result != JOptionPane.YES_OPTION) {
             return;
         }
-        try {
-            socketClient.forceExit(seatId);
-            refreshAll();
-        } catch (BusinessException exception) {
-            JOptionPane.showMessageDialog(this, exception.getMessage(), "강제 종료 실패", JOptionPane.ERROR_MESSAGE);
-        }
+        executeWithRefresh("강제 종료 실패", () -> socketClient.forceExit(seatId));
     }
 
     private void changeSeatStatus(String status) {
-        Long seatId = getSelectedSeatId();
+        Long seatId = requireSelectedSeatId();
         if (seatId == null) {
-            JOptionPane.showMessageDialog(this, "먼저 좌석을 클릭해 주세요.");
             return;
         }
-        try {
-            socketClient.changeSeatStatus(seatId, status);
-            refreshAll();
-        } catch (BusinessException exception) {
-            JOptionPane.showMessageDialog(this, exception.getMessage(), "좌석 상태 변경 실패", JOptionPane.ERROR_MESSAGE);
-        }
+        executeWithRefresh("좌석 상태 변경 실패", () -> socketClient.changeSeatStatus(seatId, status));
     }
 
     private void chooseOrderStatus() {
@@ -210,30 +195,23 @@ public class CounterPanel extends JPanel {
             default -> "REQUESTED";
         };
 
-        try {
-            socketClient.changeOrderStatus(orderId, status);
-            refreshAll();
-        } catch (BusinessException exception) {
-            JOptionPane.showMessageDialog(this, exception.getMessage(), "주문 처리 실패", JOptionPane.ERROR_MESSAGE);
-        }
+        executeWithRefresh("주문 처리 실패", () -> socketClient.changeOrderStatus(orderId, status));
     }
 
     private void sendReply() {
         Long seatId = resolveReplySeatId();
         String content = replyArea.getText().trim();
-        if (seatId == null || content.isEmpty()) {
-            if (seatId == null) {
-                JOptionPane.showMessageDialog(this, "메시지를 보낼 사용 중 좌석을 먼저 선택해 주세요.");
-            }
+        if (seatId == null) {
+            JOptionPane.showMessageDialog(this, "메시지를 보낼 사용 중 좌석을 먼저 선택해 주세요.");
             return;
         }
-        try {
+        if (content.isEmpty()) {
+            return;
+        }
+        executeWithRefresh("답변 보내기 실패", () -> {
             socketClient.sendReply(seatId, content);
             replyArea.setText("");
-            refreshAll();
-        } catch (BusinessException exception) {
-            JOptionPane.showMessageDialog(this, exception.getMessage(), "답변 보내기 실패", JOptionPane.ERROR_MESSAGE);
-        }
+        });
     }
 
     private void configureReplyArea() {
@@ -283,6 +261,23 @@ public class CounterPanel extends JPanel {
         });
     }
 
+    private Long requireSelectedSeatId() {
+        Long seatId = getSelectedSeatId();
+        if (seatId == null) {
+            JOptionPane.showMessageDialog(this, REQUIRE_SEAT_MESSAGE);
+        }
+        return seatId;
+    }
+
+    private void executeWithRefresh(String title, Runnable action) {
+        try {
+            action.run();
+            refreshAll();
+        } catch (BusinessException exception) {
+            JOptionPane.showMessageDialog(this, exception.getMessage(), title, JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private Long getSelectedSeatId() {
         int selectedIndex = seatList.getSelectedIndex();
         if (selectedIndex < 0) {
@@ -295,7 +290,7 @@ public class CounterPanel extends JPanel {
         Long selectedSeatId = getSelectedSeatId();
         if (selectedSeatId != null) {
             SeatSnapshot seat = seatSnapshotMap.get(selectedSeatId);
-            if (seat != null && !"-".equals(seat.userName())) {
+            if (seat != null && !NO_USER.equals(seat.userName())) {
                 return selectedSeatId;
             }
         }
@@ -305,47 +300,58 @@ public class CounterPanel extends JPanel {
     private void refreshAll() {
         try {
             Long previousSelectedSeatId = getSelectedSeatId();
-            seatSnapshotMap.clear();
-            seatIndexMap.clear();
-            seatModel.clear();
-            seatManageSelector.removeAllItems();
-            replySeatSelector.removeAllItems();
-            messageSeatIndexMap.clear();
-            int seatIndex = 0;
-            for (SeatSnapshot seat : socketClient.getAllSeats()) {
-                seatSnapshotMap.put(seat.seatId(), seat);
-                seatIndexMap.put(seatIndex, seat.seatId());
-                seatModel.addElement("좌석 " + seat.seatNumber() + " / " + DisplayText.seatStatus(seat.status()) + " / 손님 " + seat.userName() + " / 남은 시간 " + seat.remainingTime());
-                seatManageSelector.addItem(seat.seatId());
-                if (!"-".equals(seat.userName())) {
-                    replySeatSelector.addItem(seat.seatId());
-                }
-                seatIndex++;
-            }
-            restoreSelectedSeat(previousSelectedSeatId);
-
-            orderModel.clear();
-            orderSelector.removeAllItems();
-            for (OrderSnapshot order : socketClient.getAllOrders()) {
-                SeatSnapshot seat = seatSnapshotMap.get(order.seatId());
-                String seatText = seat == null ? "좌석 정보 없음" : "좌석 " + seat.seatNumber();
-                orderModel.addElement("주문 #" + order.orderId() + " / " + seatText + " / " + order.itemSummary() + " / " + DisplayText.orderStatus(order.status()));
-                orderSelector.addItem(order.orderId());
-            }
-
-            messageModel.clear();
-            int messageIndex = 0;
-            for (MessageSnapshot message : socketClient.getAllMessages()) {
-                SeatSnapshot seat = seatSnapshotMap.get(message.seatId());
-                String seatText = seat == null ? "좌석 ?" : "좌석 " + seat.seatNumber();
-                String nickname = seat == null ? "-" : seat.userName();
-                messageModel.addElement(seatText + " / " + nickname + " / " + DisplayText.senderType(message.senderType()) + " / " + DisplayText.messageType(message.messageType()) + " / " + message.content());
-                messageSeatIndexMap.put(messageIndex, message.seatId());
-                messageIndex++;
-            }
+            reloadSeats(previousSelectedSeatId);
+            reloadOrders();
+            reloadMessages();
         } catch (BusinessException exception) {
             seatModel.clear();
             seatModel.addElement("서버와 연결되지 않았습니다: " + exception.getMessage());
+        }
+    }
+
+    private void reloadSeats(Long previousSelectedSeatId) {
+        seatSnapshotMap.clear();
+        seatIndexMap.clear();
+        seatModel.clear();
+        seatManageSelector.removeAllItems();
+        replySeatSelector.removeAllItems();
+        messageSeatIndexMap.clear();
+
+        int seatIndex = 0;
+        for (SeatSnapshot seat : socketClient.getAllSeats()) {
+            seatSnapshotMap.put(seat.seatId(), seat);
+            seatIndexMap.put(seatIndex, seat.seatId());
+            seatModel.addElement("좌석 " + seat.seatNumber() + " / " + DisplayText.seatStatus(seat.status()) + " / 손님 " + seat.userName() + " / 남은 시간 " + seat.remainingTime());
+            seatManageSelector.addItem(seat.seatId());
+            if (!NO_USER.equals(seat.userName())) {
+                replySeatSelector.addItem(seat.seatId());
+            }
+            seatIndex++;
+        }
+        restoreSelectedSeat(previousSelectedSeatId);
+    }
+
+    private void reloadOrders() {
+        orderModel.clear();
+        orderSelector.removeAllItems();
+        for (OrderSnapshot order : socketClient.getAllOrders()) {
+            SeatSnapshot seat = seatSnapshotMap.get(order.seatId());
+            String seatText = seat == null ? "좌석 정보 없음" : "좌석 " + seat.seatNumber();
+            orderModel.addElement("주문 #" + order.orderId() + " / " + seatText + " / " + order.itemSummary() + " / " + DisplayText.orderStatus(order.status()));
+            orderSelector.addItem(order.orderId());
+        }
+    }
+
+    private void reloadMessages() {
+        messageModel.clear();
+        int messageIndex = 0;
+        for (MessageSnapshot message : socketClient.getAllMessages()) {
+            SeatSnapshot seat = seatSnapshotMap.get(message.seatId());
+            String seatText = seat == null ? "좌석 ?" : "좌석 " + seat.seatNumber();
+            String nickname = seat == null ? NO_USER : seat.userName();
+            messageModel.addElement(seatText + " / " + nickname + " / " + DisplayText.senderType(message.senderType()) + " / " + DisplayText.messageType(message.messageType()) + " / " + message.content());
+            messageSeatIndexMap.put(messageIndex, message.seatId());
+            messageIndex++;
         }
     }
 

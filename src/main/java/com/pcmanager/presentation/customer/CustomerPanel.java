@@ -206,13 +206,8 @@ public class CustomerPanel extends JPanel {
             return;
         }
         try {
-            redirectedToLogin = true;
-            JOptionPane.showMessageDialog(this, socketClient.exitSeat(currentSeatId).message());
-            Window window = SwingUtilities.getWindowAncestor(this);
-            if (window != null) {
-                window.dispose();
-            }
-            onExitComplete.run();
+            String message = socketClient.exitSeat(currentSeatId).message();
+            redirectToLogin(message);
         } catch (BusinessException exception) {
             JOptionPane.showMessageDialog(this, exception.getMessage(), "종료 실패", JOptionPane.ERROR_MESSAGE);
         }
@@ -229,22 +224,30 @@ public class CustomerPanel extends JPanel {
                 handleTimeExpired();
                 return;
             }
-            memberInfoLabel.setText("ID: " + currentLoginId);
-            seatNumberLabel.setText("좌석 번호: " + seat.seatNumber());
-            seatStatusLabel.setText("상태: " + DisplayText.seatStatus(seat.status()));
-            remainInfoLabel.setText("남은 시간: " + seat.remainingTime());
-            messageModel.clear();
-            for (MessageSnapshot message : socketClient.getMessages(currentSeatId)) {
-                if (!message.content().isBlank()) {
-                    messageModel.addElement(formatMessage(message));
-                }
-            }
-            scrollMessageListToBottom();
+            updateSeatInfo(seat);
+            reloadMessages();
         } catch (BusinessException exception) {
             if (!redirectedToLogin) {
                 memberInfoLabel.setText("서버와 연결되지 않았습니다.");
             }
         }
+    }
+
+    private void updateSeatInfo(SeatSnapshot seat) {
+        memberInfoLabel.setText("ID: " + currentLoginId);
+        seatNumberLabel.setText("좌석 번호: " + seat.seatNumber());
+        seatStatusLabel.setText("상태: " + DisplayText.seatStatus(seat.status()));
+        remainInfoLabel.setText("남은 시간: " + seat.remainingTime());
+    }
+
+    private void reloadMessages() {
+        messageModel.clear();
+        for (MessageSnapshot message : socketClient.getMessages(currentSeatId)) {
+            if (!message.content().isBlank()) {
+                messageModel.addElement(formatMessage(message));
+            }
+        }
+        scrollMessageListToBottom();
     }
 
     private String formatMessage(MessageSnapshot message) {
@@ -265,28 +268,26 @@ public class CustomerPanel extends JPanel {
     }
 
     private void handleForcedLogout() {
-        if (redirectedToLogin) {
-            return;
-        }
-        redirectedToLogin = true;
-        JOptionPane.showMessageDialog(this, "카운터에서 좌석이 종료되었습니다. 남은 시간은 저장되었고 로그인 화면으로 돌아갑니다.");
-        Window window = SwingUtilities.getWindowAncestor(this);
-        if (window != null) {
-            window.dispose();
-        }
-        onExitComplete.run();
+        redirectToLogin("카운터에서 좌석이 종료되었습니다. 남은 시간은 저장되었고 로그인 화면으로 돌아갑니다.");
     }
 
     private void handleTimeExpired() {
         if (redirectedToLogin) {
             return;
         }
-        redirectedToLogin = true;
         try {
             socketClient.exitSeat(currentSeatId);
         } catch (BusinessException ignored) {
         }
-        JOptionPane.showMessageDialog(this, "남은 시간이 0이 되어 종료되었습니다. 로그인 화면으로 돌아갑니다.");
+        redirectToLogin("남은 시간이 0이 되어 종료되었습니다. 로그인 화면으로 돌아갑니다.");
+    }
+
+    private void redirectToLogin(String notice) {
+        if (redirectedToLogin) {
+            return;
+        }
+        redirectedToLogin = true;
+        JOptionPane.showMessageDialog(this, notice);
         Window window = SwingUtilities.getWindowAncestor(this);
         if (window != null) {
             window.dispose();
