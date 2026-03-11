@@ -8,7 +8,9 @@ import com.pcmanager.domain.seat.Seat;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class MemoryStore {
@@ -17,6 +19,7 @@ public class MemoryStore {
     private final List<Product> products = Collections.synchronizedList(new ArrayList<>());
     private final List<Order> orders = Collections.synchronizedList(new ArrayList<>());
     private final List<Message> messages = Collections.synchronizedList(new ArrayList<>());
+    private final Map<Long, Long> customerOrderVisibility = Collections.synchronizedMap(new LinkedHashMap<>());
 
     private final AtomicLong orderSequence = new AtomicLong(0L);
     private final AtomicLong messageSequence = new AtomicLong(0L);
@@ -40,6 +43,10 @@ public class MemoryStore {
 
     public List<Message> getMessages() {
         return messages;
+    }
+
+    public Map<Long, Long> getCustomerOrderVisibility() {
+        return customerOrderVisibility;
     }
 
     public long nextOrderId() {

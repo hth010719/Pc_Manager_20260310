@@ -20,7 +20,7 @@ public final class DisplayText {
             case "ACCEPTED" -> "주문 확인";
             case "PREPARING" -> "준비 중";
             case "DELIVERING" -> "전달 중";
-            case "COMPLETED" -> "완료";
+            case "COMPLETED" -> "전달 완료";
             case "CANCELED" -> "취소";
             default -> value;
         };

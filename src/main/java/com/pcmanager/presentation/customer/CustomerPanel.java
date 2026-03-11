@@ -4,6 +4,7 @@ import com.pcmanager.common.exception.BusinessException;
 import com.pcmanager.common.util.DisplayText;
 import com.pcmanager.infrastructure.network.EnterSeatSnapshot;
 import com.pcmanager.infrastructure.network.MessageSnapshot;
+import com.pcmanager.infrastructure.network.OrderSnapshot;
 import com.pcmanager.infrastructure.network.PcSocketClient;
 import com.pcmanager.infrastructure.network.SeatSnapshot;
 
@@ -14,6 +15,7 @@ import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
 import javax.swing.JButton;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -24,6 +26,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import java.awt.event.ActionEvent;
 import java.awt.BorderLayout;
+import java.awt.Dialog;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Window;
@@ -98,11 +101,17 @@ public class CustomerPanel extends JPanel {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("먹거리 주문"));
 
+        JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 8, 8));
         JButton orderButton = new JButton("먹거리 주문");
         orderButton.setFont(new Font("Dialog", Font.BOLD, 20));
         orderButton.addActionListener(event -> openOrderWindow());
+        JButton orderHistoryButton = new JButton("주문내역");
+        orderHistoryButton.setFont(new Font("Dialog", Font.BOLD, 18));
+        orderHistoryButton.addActionListener(event -> openOrderHistoryDialog());
 
-        panel.add(orderButton, BorderLayout.CENTER);
+        buttonPanel.add(orderButton);
+        buttonPanel.add(orderHistoryButton);
+        panel.add(buttonPanel, BorderLayout.CENTER);
         return panel;
     }
 
@@ -172,8 +181,47 @@ public class CustomerPanel extends JPanel {
     }
 
     private void openOrderWindow() {
-        CustomerOrderPlaceholderFrame frame = new CustomerOrderPlaceholderFrame();
+        CustomerOrderPlaceholderFrame frame = new CustomerOrderPlaceholderFrame(socketClient, currentSeatId);
         frame.setVisible(true);
+    }
+
+    private void openOrderHistoryDialog() {
+        DefaultListModel<String> orderHistoryModel = new DefaultListModel<>();
+        JList<String> orderHistoryList = new JList<>(orderHistoryModel);
+
+        for (OrderSnapshot order : socketClient.getOrders(currentSeatId)) {
+            orderHistoryModel.addElement(
+                    "주문 #" + order.orderId()
+                            + " / " + order.itemSummary()
+                            + " / " + order.totalPrice() + "원 / "
+                            + customerOrderStatusText(order.status())
+            );
+        }
+
+        if (orderHistoryModel.isEmpty()) {
+            orderHistoryModel.addElement("주문한 내역이 없습니다.");
+        }
+
+        JDialog dialog = new JDialog((Window) SwingUtilities.getWindowAncestor(this), "주문내역", Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setLayout(new BorderLayout(8, 8));
+        dialog.add(new JScrollPane(orderHistoryList), BorderLayout.CENTER);
+
+        JButton closeButton = new JButton("닫기");
+        closeButton.addActionListener(event -> dialog.dispose());
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(closeButton, BorderLayout.EAST);
+        dialog.add(bottomPanel, BorderLayout.SOUTH);
+
+        dialog.setSize(520, 360);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private String customerOrderStatusText(String status) {
+        if ("REQUESTED".equals(status)) {
+            return "주문완료";
+        }
+        return DisplayText.orderStatus(status);
     }
 
     public void extendTime(int minutes, int price) {

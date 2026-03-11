@@ -1,5 +1,9 @@
 package com.pcmanager.presentation.customer;
 
+import com.pcmanager.common.exception.BusinessException;
+import com.pcmanager.infrastructure.network.PcSocketClient;
+
+import javax.imageio.ImageIO;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -13,6 +17,7 @@ import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
+import javax.swing.ImageIcon;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -20,49 +25,63 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.net.URISyntaxException;
 import java.text.NumberFormat;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public class CustomerOrderPlaceholderFrame extends JFrame {
     private static final String CATEGORY_ALL = "전체";
     private static final Color CARD_BORDER_COLOR = new Color(215, 205, 190);
     private static final Color IMAGE_BG_COLOR = new Color(239, 234, 225);
     private static final Color IMAGE_BORDER_COLOR = new Color(180, 168, 150);
+    private static final Path MENU_IMAGE_DIR = resolveMenuImageDir();
 
     private final JPanel menuGridPanel = new JPanel();
     private final JPanel cartItemsPanel = new JPanel();
     private final JLabel headerLabel = new JLabel();
     private final JLabel cartTotalLabel = new JLabel();
     private final JScrollPane menuScrollPane;
+    private final PcSocketClient socketClient;
+    private final Long seatId;
     private final Map<MenuItemData, Integer> cartItems = new LinkedHashMap<>();
+    private final Map<String, ImageIcon> scaledImageCache = new LinkedHashMap<>();
 
     private final List<MenuItemData> menuItems = List.of(
-            new MenuItemData("식사류", "스팸 마요 덮밥", 6900, "짭조름한 스팸과 고소한 마요를 듬뿍 올린 든든한 한 끼"),
-            new MenuItemData("식사류", "치킨 마요 덮밥", 7200, "바삭한 치킨과 달콤한 소스로 부담 없이 즐기는 인기 메뉴"),
-            new MenuItemData("식사류", "김치볶음밥", 6800, "매콤하게 볶아낸 김치와 고슬한 밥이 잘 어울리는 메뉴"),
-            new MenuItemData("식사류", "삼겹살 정식", 8900, "구운 삼겹살과 밥, 반찬을 함께 즐기는 묵직한 정식"),
-            new MenuItemData("면류", "짜계치", 5200, "짜장과 계란, 치즈가 어우러진 진한 풍미의 라면"),
-            new MenuItemData("면류", "라볶이", 5900, "쫄깃한 떡과 라면을 매콤달콤하게 끓여낸 분식 메뉴"),
-            new MenuItemData("면류", "신라면", 3900, "얼큰한 국물로 부담 없이 즐기는 기본 라면"),
-            new MenuItemData("면류", "진라면", 3900, "순한 맛과 매운 맛의 균형이 좋은 대중적인 라면"),
-            new MenuItemData("면류", "참깨라면", 4200, "참깨 풍미와 계란 블록이 살아 있는 고소한 라면"),
-            new MenuItemData("간식 및 튀김류", "소떡소떡", 3800, "소시지와 떡을 달콤한 소스로 가볍게 즐기는 간식"),
-            new MenuItemData("간식 및 튀김류", "치킨 가라아게", 5500, "겉은 바삭하고 속은 촉촉한 한입 치킨"),
-            new MenuItemData("간식 및 튀김류", "감자튀김", 3500, "짭짤하고 바삭한 기본 사이드 메뉴"),
-            new MenuItemData("간식 및 튀김류", "만두", 4000, "노릇하게 구워 간단히 곁들이기 좋은 만두"),
-            new MenuItemData("음료수", "콜라", 2000, "시원하게 마시기 좋은 탄산음료"),
-            new MenuItemData("음료수", "사이다", 2000, "깔끔한 청량감이 특징인 탄산음료"),
-            new MenuItemData("음료수", "아메리카노", 2800, "진한 향과 깔끔한 끝맛의 커피"),
-            new MenuItemData("음료수", "아이스티", 2500, "달콤하고 산뜻하게 즐기는 차가운 음료"),
-            new MenuItemData("기타", "단무지 추가", 0, "느끼함을 잡아주는 아삭한 단무지 추가"),
-            new MenuItemData("기타", "김치 추가", 0, "식사와 잘 어울리는 매콤한 김치 추가"),
-            new MenuItemData("기타", "공깃밥 추가", 1000, "식사 메뉴와 곁들일 수 있는 따뜻한 공깃밥")
+            new MenuItemData(1L, "식사류", "스팸 마요 덮밥", 6900, "짭조름한 스팸과 고소한 마요를 듬뿍 올린 든든한 한 끼"),
+            new MenuItemData(2L, "식사류", "치킨 마요 덮밥", 7200, "바삭한 치킨과 달콤한 소스로 부담 없이 즐기는 인기 메뉴"),
+            new MenuItemData(3L, "식사류", "김치볶음밥", 6800, "매콤하게 볶아낸 김치와 고슬한 밥이 잘 어울리는 메뉴"),
+            new MenuItemData(4L, "식사류", "삼겹살 정식", 8900, "구운 삼겹살과 밥, 반찬을 함께 즐기는 묵직한 정식"),
+            new MenuItemData(5L, "면류", "짜계치", 5200, "짜장과 계란, 치즈가 어우러진 진한 풍미의 라면"),
+            new MenuItemData(6L, "면류", "라볶이", 5900, "쫄깃한 떡과 라면을 매콤달콤하게 끓여낸 분식 메뉴"),
+            new MenuItemData(7L, "면류", "신라면", 3900, "얼큰한 국물로 부담 없이 즐기는 기본 라면"),
+            new MenuItemData(8L, "면류", "진라면", 3900, "순한 맛과 매운 맛의 균형이 좋은 대중적인 라면"),
+            new MenuItemData(9L, "면류", "참깨라면", 4200, "참깨 풍미와 계란 블록이 살아 있는 고소한 라면"),
+            new MenuItemData(10L, "간식 및 튀김류", "소떡소떡", 3800, "소시지와 떡을 달콤한 소스로 가볍게 즐기는 간식"),
+            new MenuItemData(11L, "간식 및 튀김류", "치킨 가라아게", 5500, "겉은 바삭하고 속은 촉촉한 한입 치킨"),
+            new MenuItemData(12L, "간식 및 튀김류", "감자튀김", 3500, "짭짤하고 바삭한 기본 사이드 메뉴"),
+            new MenuItemData(13L, "간식 및 튀김류", "만두", 4000, "노릇하게 구워 간단히 곁들이기 좋은 만두"),
+            new MenuItemData(14L, "음료수", "콜라", 2000, "시원하게 마시기 좋은 탄산음료"),
+            new MenuItemData(15L, "음료수", "사이다", 2000, "깔끔한 청량감이 특징인 탄산음료"),
+            new MenuItemData(16L, "음료수", "아메리카노", 2800, "진한 향과 깔끔한 끝맛의 커피"),
+            new MenuItemData(17L, "음료수", "아이스티", 2500, "달콤하고 산뜻하게 즐기는 차가운 음료"),
+            new MenuItemData(18L, "기타", "단무지 추가", 0, "느끼함을 잡아주는 아삭한 단무지 추가"),
+            new MenuItemData(19L, "기타", "김치 추가", 0, "식사와 잘 어울리는 매콤한 김치 추가"),
+            new MenuItemData(20L, "기타", "공깃밥 추가", 1000, "식사 메뉴와 곁들일 수 있는 따뜻한 공깃밥")
     );
 
-    public CustomerOrderPlaceholderFrame() {
+    public CustomerOrderPlaceholderFrame(PcSocketClient socketClient, Long seatId) {
+        this.socketClient = socketClient;
+        this.seatId = seatId;
         setTitle("먹거리 주문");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setSize(1260, 1320);
@@ -96,13 +115,23 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
 
+        JButton backButton = new JButton("이전");
+        backButton.setFont(new Font("Dialog", Font.BOLD, 16));
+        backButton.addActionListener(event -> dispose());
+
         JLabel titleLabel = new JLabel("먹거리 주문");
         titleLabel.setFont(new Font("Dialog", Font.BOLD, 34));
 
         headerLabel.setFont(new Font("Dialog", Font.PLAIN, 18));
         headerLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        panel.add(titleLabel, BorderLayout.WEST);
+        JPanel leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        leftPanel.setOpaque(false);
+        leftPanel.add(backButton);
+        leftPanel.add(Box.createHorizontalStrut(14));
+        leftPanel.add(titleLabel);
+
+        panel.add(leftPanel, BorderLayout.WEST);
         panel.add(headerLabel, BorderLayout.EAST);
         return panel;
     }
@@ -254,14 +283,14 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, preferredHeight));
 
         if (allCategory) {
-            card.add(createAllCategoryImageWrapper(), BorderLayout.WEST);
+            card.add(createAllCategoryImageWrapper(item), BorderLayout.WEST);
             card.add(createAllCategoryInfoPanel(item), BorderLayout.CENTER);
             card.add(createMenuActionPanel(item), BorderLayout.SOUTH);
             return card;
         }
 
         card.add(createOtherCategoryInfoPanel(item), BorderLayout.NORTH);
-        card.add(createCenteredImagePanel(), BorderLayout.CENTER);
+        card.add(createCenteredImagePanel(item), BorderLayout.CENTER);
         card.add(createOtherCategoryBottomPanel(item), BorderLayout.SOUTH);
         return card;
     }
@@ -270,25 +299,31 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         return CATEGORY_ALL.equals(currentCategory) ? 185 : 360;
     }
 
-    private JPanel createAllCategoryImageWrapper() {
+    private JPanel createAllCategoryImageWrapper(MenuItemData item) {
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setOpaque(false);
-        wrapper.add(createImagePlaceholder(100, 120), BorderLayout.CENTER);
+        wrapper.add(createImagePlaceholder(100, 120, item), BorderLayout.CENTER);
         return wrapper;
     }
 
-    private JPanel createCenteredImagePanel() {
+    private JPanel createCenteredImagePanel(MenuItemData item) {
         JPanel panel = new JPanel(new GridLayout(1, 1));
         panel.setOpaque(false);
-        panel.add(createImagePlaceholder(200, 145));
+        panel.add(createImagePlaceholder(200, 145, item));
         return panel;
     }
 
-    private JPanel createImagePlaceholder(int width, int height) {
+    private JPanel createImagePlaceholder(int width, int height, MenuItemData item) {
         JPanel imagePanel = new JPanel(new BorderLayout());
         imagePanel.setPreferredSize(new Dimension(width, height));
         imagePanel.setBackground(IMAGE_BG_COLOR);
         imagePanel.setBorder(BorderFactory.createDashedBorder(IMAGE_BORDER_COLOR, 2, 6, 4, false));
+
+        JLabel imageLabel = createImageLabel(item, width, height);
+        if (imageLabel != null) {
+            imagePanel.add(imageLabel, BorderLayout.CENTER);
+            return imagePanel;
+        }
 
         JLabel label = new JLabel("이미지 준비중", SwingConstants.CENTER);
         label.setFont(new Font("Dialog", Font.PLAIN, 12));
@@ -417,7 +452,16 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "장바구니에 상품을 먼저 담아 주세요.");
             return;
         }
-        JOptionPane.showMessageDialog(this, "주문 연결은 다음 단계에서 구현합니다.");
+        try {
+            for (Map.Entry<MenuItemData, Integer> entry : cartItems.entrySet()) {
+                socketClient.placeOrder(seatId, entry.getKey().productId(), entry.getValue());
+            }
+            cartItems.clear();
+            refreshCart();
+            JOptionPane.showMessageDialog(this, "주문이 완료되었습니다.");
+        } catch (BusinessException exception) {
+            JOptionPane.showMessageDialog(this, exception.getMessage(), "주문 실패", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void refreshCart() {
@@ -450,7 +494,9 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
         itemPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 110));
+        itemPanel.setPreferredSize(new Dimension(0, 128));
+        itemPanel.setMinimumSize(new Dimension(0, 128));
+        itemPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 128));
 
         JLabel nameLabel = new JLabel(item.name());
         nameLabel.setFont(new Font("Dialog", Font.BOLD, 15));
@@ -466,12 +512,14 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         textPanel.add(Box.createVerticalStrut(4));
         textPanel.add(priceLabel);
 
-        JPanel quantityPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        JPanel quantityPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 8));
         quantityPanel.setOpaque(false);
         JButton minusButton = new JButton("-");
         JButton plusButton = new JButton("+");
         JLabel quantityLabel = new JLabel(String.valueOf(quantity));
         quantityLabel.setFont(new Font("Dialog", Font.BOLD, 15));
+        minusButton.setPreferredSize(new Dimension(48, 32));
+        plusButton.setPreferredSize(new Dimension(48, 32));
         minusButton.addActionListener(event -> changeCartQuantity(item, -1));
         plusButton.addActionListener(event -> changeCartQuantity(item, 1));
         quantityPanel.add(minusButton);
@@ -506,6 +554,101 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         return NumberFormat.getNumberInstance(Locale.KOREA).format(price) + "원";
     }
 
-    private record MenuItemData(String category, String name, int price, String description) {
+    private JLabel createImageLabel(MenuItemData item, int width, int height) {
+        if (MENU_IMAGE_DIR == null) {
+            return null;
+        }
+
+        Path imagePath = resolveImagePath(item);
+        if (!Files.exists(imagePath)) {
+            return null;
+        }
+        String cacheKey = imagePath.toAbsolutePath() + "|" + width + "x" + height;
+        ImageIcon cachedIcon = scaledImageCache.get(cacheKey);
+        if (cachedIcon != null) {
+            return new JLabel(cachedIcon, SwingConstants.CENTER);
+        }
+
+        try {
+            BufferedImage originalImage = ImageIO.read(imagePath.toFile());
+            if (originalImage == null) {
+                return null;
+            }
+            Image scaledImage = originalImage.getScaledInstance(width - 8, height - 8, Image.SCALE_SMOOTH);
+            ImageIcon scaledIcon = new ImageIcon(scaledImage);
+            scaledImageCache.put(cacheKey, scaledIcon);
+            return new JLabel(scaledIcon, SwingConstants.CENTER);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Path resolveImagePath(MenuItemData item) {
+        Path directPath = MENU_IMAGE_DIR.resolve(item.imageFileName());
+        if (Files.exists(directPath)) {
+            return directPath;
+        }
+
+        Path itemDirectory = MENU_IMAGE_DIR.resolve(String.valueOf(item.productId()));
+        Path namedPath = itemDirectory.resolve("image.png");
+        if (Files.exists(namedPath)) {
+            return namedPath;
+        }
+
+        if (Files.isDirectory(itemDirectory)) {
+            try (Stream<Path> files = Files.list(itemDirectory)) {
+                return files
+                        .filter(Files::isRegularFile)
+                        .filter(file -> isSupportedImageFile(file.getFileName().toString()))
+                        .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                        .findFirst()
+                        .orElse(directPath);
+            } catch (Exception ignored) {
+                return directPath;
+            }
+        }
+
+        return directPath;
+    }
+
+    private boolean isSupportedImageFile(String fileName) {
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg");
+    }
+
+    private static Path resolveMenuImageDir() {
+        Path workingDirResolved = findMenuImageDir(Paths.get("").toAbsolutePath());
+        if (workingDirResolved != null) {
+            return workingDirResolved;
+        }
+
+        try {
+            Path codeSource = Paths.get(CustomerOrderPlaceholderFrame.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            Path codeSourceResolved = findMenuImageDir(codeSource);
+            if (codeSourceResolved != null) {
+                return codeSourceResolved;
+            }
+        } catch (URISyntaxException ignored) {
+        }
+
+        return Path.of("assets", "menu-images");
+    }
+
+    private static Path findMenuImageDir(Path startPath) {
+        Path current = Files.isDirectory(startPath) ? startPath : startPath.getParent();
+        while (current != null) {
+            Path candidate = current.resolve("assets").resolve("menu-images");
+            if (Files.isDirectory(candidate)) {
+                return candidate;
+            }
+            current = current.getParent();
+        }
+        return null;
+    }
+
+    private record MenuItemData(Long productId, String category, String name, int price, String description) {
+        private String imageFileName() {
+            return productId + ".png";
+        }
     }
 }

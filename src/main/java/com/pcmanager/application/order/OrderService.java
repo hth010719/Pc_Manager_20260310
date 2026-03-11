@@ -25,6 +25,14 @@ public class OrderService {
         return store.getOrders();
     }
 
+    public List<Order> getCustomerOrders(Long seatId) {
+        long visibleAfterOrderId = store.getCustomerOrderVisibility().getOrDefault(seatId, 0L);
+        return store.getOrders().stream()
+                .filter(order -> order.getSeatId().equals(seatId))
+                .filter(order -> order.getOrderId() > visibleAfterOrderId)
+                .toList();
+    }
+
     public Order placeOrder(Long seatId, Long memberId, Long productId, int quantity) {
         Seat seat = store.getSeats().stream()
                 .filter(item -> item.getSeatId().equals(seatId))
@@ -68,5 +76,19 @@ public class OrderService {
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("존재하지 않는 주문입니다. orderId=" + orderId));
         order.changeStatus(orderStatus);
+    }
+
+    public void clearCustomerOrders(Long seatId) {
+        long latestOrderId = store.getOrders().stream()
+                .filter(order -> order.getSeatId().equals(seatId))
+                .mapToLong(Order::getOrderId)
+                .max()
+                .orElse(0L);
+        store.getCustomerOrderVisibility().put(seatId, latestOrderId);
+    }
+
+    public void clearAllOrders() {
+        store.getOrders().clear();
+        store.getCustomerOrderVisibility().clear();
     }
 }

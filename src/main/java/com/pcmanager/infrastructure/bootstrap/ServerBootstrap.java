@@ -53,10 +53,26 @@ public record ServerBootstrap(
         store.getSeats().add(new Seat(13L, 13, SeatStatus.AVAILABLE, null, null, null, null));
         store.getSeats().add(new Seat(14L, 14, SeatStatus.AVAILABLE, null, null, null, null));
 
-        store.getProducts().add(new Product(1L, 1L, "콜라", 2000, 20, SaleStatus.ON_SALE));
-        store.getProducts().add(new Product(2L, 1L, "사이다", 2000, 14, SaleStatus.ON_SALE));
-        store.getProducts().add(new Product(3L, 2L, "컵라면", 3500, 7, SaleStatus.ON_SALE));
-        store.getProducts().add(new Product(4L, 2L, "핫도그", 3000, 5, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(1L, 1L, "스팸 마요 덮밥", 6900, 30, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(2L, 1L, "치킨 마요 덮밥", 7200, 30, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(3L, 1L, "김치볶음밥", 6800, 30, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(4L, 1L, "삼겹살 정식", 8900, 25, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(5L, 2L, "짜계치", 5200, 30, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(6L, 2L, "라볶이", 5900, 30, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(7L, 2L, "신라면", 3900, 40, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(8L, 2L, "진라면", 3900, 40, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(9L, 2L, "참깨라면", 4200, 35, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(10L, 3L, "소떡소떡", 3800, 40, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(11L, 3L, "치킨 가라아게", 5500, 30, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(12L, 3L, "감자튀김", 3500, 35, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(13L, 3L, "만두", 4000, 35, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(14L, 4L, "콜라", 2000, 50, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(15L, 4L, "사이다", 2000, 50, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(16L, 4L, "아메리카노", 2800, 40, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(17L, 4L, "아이스티", 2500, 40, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(18L, 5L, "단무지 추가", 0, 999, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(19L, 5L, "김치 추가", 0, 999, SaleStatus.ON_SALE));
+        store.getProducts().add(new Product(20L, 5L, "공깃밥 추가", 1000, 50, SaleStatus.ON_SALE));
 
         ProductService productService = new ProductService(store);
         MemberService memberService = new MemberService(store, memberFileStore);

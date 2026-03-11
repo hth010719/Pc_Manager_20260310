@@ -95,6 +95,7 @@ public class PcSocketServer {
                 case "ORDER" -> handleOrder(tokens);
                 case "ORDERS" -> enqueueOrders(Long.parseLong(tokens[1]));
                 case "ALL_ORDERS" -> enqueueAllOrders();
+                case "CLEAR_ORDERS" -> handleClearOrders();
                 case "ADVANCE_ORDER" -> handleAdvanceOrder(tokens);
                 case "CHANGE_ORDER" -> handleChangeOrder(tokens);
                 case "MESSAGE" -> handleMessage(tokens);
@@ -154,6 +155,11 @@ public class PcSocketServer {
         return "OK|" + ProtocolCodec.encode("주문 상태를 바꿨습니다.");
     }
 
+    private String handleClearOrders() {
+        orderService.clearAllOrders();
+        return "OK|" + ProtocolCodec.encode("주문내역을 초기화했습니다.");
+    }
+
     private String handleMessage(String[] tokens) {
         messageService.sendCustomerMessage(Long.parseLong(tokens[1]), MessageType.valueOf(tokens[2]), ProtocolCodec.decode(tokens[3]));
         return "OK|" + ProtocolCodec.encode("메시지 전송 완료");
@@ -184,6 +190,7 @@ public class PcSocketServer {
         int remainingMinutes = (int) ((remainingSeconds + 59) / 60);
         memberService.updateRemainingMinutes(seat.getCurrentUserId(), remainingMinutes);
         messageService.clearMessagesBySeat(seatId);
+        orderService.clearCustomerOrders(seatId);
         seatService.forceExit(seatId);
         return "OK|" + ProtocolCodec.encode("종료 완료");
     }
@@ -197,6 +204,7 @@ public class PcSocketServer {
             memberService.updateRemainingMinutes(seat.getCurrentUserId(), remainingMinutes);
         }
         messageService.clearMessagesBySeat(seatId);
+        orderService.clearCustomerOrders(seatId);
         seatService.forceExit(seatId);
         return "OK|" + ProtocolCodec.encode("해당 좌석을 종료했습니다.");
     }
@@ -238,7 +246,7 @@ public class PcSocketServer {
     }
 
     private String enqueueOrders(Long seatId) {
-        List<Order> orders = orderService.getAllOrders().stream().filter(order -> order.getSeatId().equals(seatId)).toList();
+        List<Order> orders = orderService.getCustomerOrders(seatId);
         return "OK|" + orders.size() + "|" + buildOrderPayload(orders);
     }
 

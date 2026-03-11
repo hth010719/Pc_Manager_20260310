@@ -13,7 +13,6 @@ import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
@@ -42,14 +41,15 @@ public class CounterPanel extends JPanel {
     private final DefaultListModel<String> seatModel = new DefaultListModel<>();
     private final JList<String> seatList = new JList<>(seatModel);
     private final DefaultListModel<String> orderModel = new DefaultListModel<>();
+    private final JList<String> orderList = new JList<>(orderModel);
     private final DefaultListModel<String> messageModel = new DefaultListModel<>();
-    private final JComboBox<Long> orderSelector = new JComboBox<>();
-    private final JComboBox<Long> seatManageSelector = new JComboBox<>();
-    private final JComboBox<Long> replySeatSelector = new JComboBox<>();
+    private final javax.swing.JComboBox<Long> seatManageSelector = new javax.swing.JComboBox<>();
+    private final javax.swing.JComboBox<Long> replySeatSelector = new javax.swing.JComboBox<>();
     private final JTextArea replyArea = new JTextArea(4, 20);
     private final JList<String> messageList = new JList<>(messageModel);
     private final Map<Long, SeatSnapshot> seatSnapshotMap = new LinkedHashMap<>();
     private final Map<Integer, Long> seatIndexMap = new LinkedHashMap<>();
+    private final Map<Integer, Long> orderIndexMap = new LinkedHashMap<>();
     private final Map<Integer, Long> messageSeatIndexMap = new LinkedHashMap<>();
 
     public CounterPanel(PcSocketClient socketClient) {
@@ -57,12 +57,12 @@ public class CounterPanel extends JPanel {
         setLayout(new BorderLayout(16, 16));
         setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
-        orderSelector.setRenderer(new SeatAwareRenderer("주문 "));
         seatManageSelector.setRenderer(new SeatAwareRenderer("좌석 "));
         replySeatSelector.setRenderer(new SeatAwareRenderer("좌석 "));
         configureReplyArea();
         configureMessageList();
         configureSeatList();
+        configureOrderList();
 
         JPanel content = new JPanel(new GridLayout(1, 3, 12, 12));
         content.add(createSeatPanel());
@@ -117,15 +117,20 @@ public class CounterPanel extends JPanel {
     private JPanel createOrderPanel() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createTitledBorder("주문 관리"));
-        panel.add(new JScrollPane(new JList<>(orderModel)), BorderLayout.CENTER);
+        panel.add(new JScrollPane(orderList), BorderLayout.CENTER);
 
         JPanel actionPanel = new JPanel();
         actionPanel.setLayout(new BoxLayout(actionPanel, BoxLayout.Y_AXIS));
-        actionPanel.add(new JLabel("상태를 바꿀 주문"));
-        actionPanel.add(orderSelector);
-        JButton changeButton = new JButton("주문 상태 바꾸기");
-        changeButton.addActionListener(event -> chooseOrderStatus());
-        actionPanel.add(changeButton);
+        actionPanel.add(new JLabel("목록에서 주문을 클릭한 뒤 상태 변경"));
+        JButton acceptButton = new JButton("주문 확인");
+        JButton completeButton = new JButton("전달 완료");
+        JButton clearButton = new JButton("초기화");
+        acceptButton.addActionListener(event -> changeSelectedOrderStatus("ACCEPTED"));
+        completeButton.addActionListener(event -> changeSelectedOrderStatus("COMPLETED"));
+        clearButton.addActionListener(event -> clearOrders());
+        actionPanel.add(acceptButton);
+        actionPanel.add(completeButton);
+        actionPanel.add(clearButton);
         panel.add(actionPanel, BorderLayout.SOUTH);
         return panel;
     }
@@ -175,36 +180,21 @@ public class CounterPanel extends JPanel {
         executeWithRefresh("좌석 상태 변경 실패", () -> socketClient.changeSeatStatus(seatId, status));
     }
 
-    private void chooseOrderStatus() {
-        Long orderId = (Long) orderSelector.getSelectedItem();
+    private void changeSelectedOrderStatus(String status) {
+        Long orderId = getSelectedOrderId();
         if (orderId == null) {
+            JOptionPane.showMessageDialog(this, "상태를 바꿀 주문을 먼저 클릭해 주세요.");
             return;
         }
-
-        Object[] choices = {"주문 확인", "준비 중", "전달 중", "완료", "취소"};
-        Object selected = JOptionPane.showInputDialog(
-                this,
-                "바꿀 상태를 골라 주세요.",
-                "주문 상태 바꾸기",
-                JOptionPane.PLAIN_MESSAGE,
-                null,
-                choices,
-                choices[0]
-        );
-        if (selected == null) {
-            return;
-        }
-
-        String status = switch (selected.toString()) {
-            case "주문 확인" -> "ACCEPTED";
-            case "준비 중" -> "PREPARING";
-            case "전달 중" -> "DELIVERING";
-            case "완료" -> "COMPLETED";
-            case "취소" -> "CANCELED";
-            default -> "REQUESTED";
-        };
-
         executeWithRefresh("주문 처리 실패", () -> socketClient.changeOrderStatus(orderId, status));
+    }
+
+    private void clearOrders() {
+        int result = JOptionPane.showConfirmDialog(this, "카운터 주문내역을 모두 초기화할까요?", "주문내역 초기화", JOptionPane.YES_NO_OPTION);
+        if (result != JOptionPane.YES_OPTION) {
+            return;
+        }
+        executeWithRefresh("주문내역 초기화 실패", socketClient::clearOrders);
     }
 
     private void sendCounterMessage() {
@@ -270,6 +260,15 @@ public class CounterPanel extends JPanel {
         });
     }
 
+    private void configureOrderList() {
+        orderList.addListSelectionListener(event -> {
+            if (event.getValueIsAdjusting()) {
+                return;
+            }
+            getSelectedOrderId();
+        });
+    }
+
     private Long requireSelectedSeatId() {
         Long seatId = getSelectedSeatId();
         if (seatId == null) {
@@ -293,6 +292,14 @@ public class CounterPanel extends JPanel {
             return null;
         }
         return seatIndexMap.get(selectedIndex);
+    }
+
+    private Long getSelectedOrderId() {
+        int selectedIndex = orderList.getSelectedIndex();
+        if (selectedIndex < 0) {
+            return null;
+        }
+        return orderIndexMap.get(selectedIndex);
     }
 
     private Long resolveReplySeatId() {
@@ -411,14 +418,18 @@ public class CounterPanel extends JPanel {
     }
 
     private void reloadOrders() {
+        Long previousSelectedOrderId = getSelectedOrderId();
         orderModel.clear();
-        orderSelector.removeAllItems();
+        orderIndexMap.clear();
+        int orderIndex = 0;
         for (OrderSnapshot order : socketClient.getAllOrders()) {
             SeatSnapshot seat = seatSnapshotMap.get(order.seatId());
             String seatText = seat == null ? "좌석 정보 없음" : "좌석 " + seat.seatNumber();
-            orderModel.addElement("주문 #" + order.orderId() + " / " + seatText + " / " + order.itemSummary() + " / " + DisplayText.orderStatus(order.status()));
-            orderSelector.addItem(order.orderId());
+            orderModel.addElement("주문 #" + order.orderId() + " / " + seatText + " / " + order.itemSummary() + " / " + order.totalPrice() + "원 / " + DisplayText.orderStatus(order.status()));
+            orderIndexMap.put(orderIndex, order.orderId());
+            orderIndex++;
         }
+        restoreSelectedOrder(previousSelectedOrderId);
     }
 
     private void reloadMessages() {
@@ -449,6 +460,24 @@ public class CounterPanel extends JPanel {
         }
         if (!seatIndexMap.isEmpty()) {
             seatList.setSelectedIndex(0);
+        }
+    }
+
+    private void restoreSelectedOrder(Long selectedOrderId) {
+        if (selectedOrderId == null) {
+            if (!orderIndexMap.isEmpty()) {
+                orderList.setSelectedIndex(0);
+            }
+            return;
+        }
+        for (Map.Entry<Integer, Long> entry : orderIndexMap.entrySet()) {
+            if (selectedOrderId.equals(entry.getValue())) {
+                orderList.setSelectedIndex(entry.getKey());
+                return;
+            }
+        }
+        if (!orderIndexMap.isEmpty()) {
+            orderList.setSelectedIndex(0);
         }
     }
 

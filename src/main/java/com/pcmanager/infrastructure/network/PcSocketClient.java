@@ -78,6 +78,11 @@ public class PcSocketClient {
         return parseOrders(send("ALL_ORDERS"));
     }
 
+    public SocketResponse clearOrders() {
+        sendAndParseOk("CLEAR_ORDERS", 2);
+        return new SocketResponse(true, "주문내역을 초기화했습니다.");
+    }
+
     public SocketResponse advanceOrder(Long orderId) {
         sendAndParseOk("ADVANCE_ORDER|" + orderId, 2);
         return new SocketResponse(true, "주문 상태가 변경되었습니다.");
