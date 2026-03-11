@@ -3,6 +3,7 @@ package com.pcmanager.application.member;
 import com.pcmanager.common.exception.BusinessException;
 import com.pcmanager.domain.member.Member;
 import com.pcmanager.domain.member.UserRole;
+import com.pcmanager.domain.seat.Seat;
 import com.pcmanager.infrastructure.persistence.file.MemberFileStore;
 import com.pcmanager.infrastructure.persistence.memory.MemoryStore;
 
@@ -70,6 +71,23 @@ public class MemberService {
     public synchronized void addRemainingMinutes(String loginId, int minutes) {
         Member member = getByLoginId(loginId);
         member.addRemainingMinutes(minutes);
+        memberFileStore.saveMembers(store.getMembers());
+    }
+
+    public synchronized void deleteMember(Long memberId) {
+        Member member = getById(memberId);
+        Seat occupiedSeat = store.getSeats().stream()
+                .filter(seat -> memberId.equals(seat.getCurrentUserId()))
+                .findFirst()
+                .orElse(null);
+        if (occupiedSeat != null) {
+            throw new BusinessException("현재 좌석을 사용 중인 회원은 탈퇴시킬 수 없습니다. 좌석 " + occupiedSeat.getSeatNumber());
+        }
+
+        boolean removed = store.getMembers().remove(member);
+        if (!removed) {
+            throw new BusinessException("회원 탈퇴 처리에 실패했습니다.");
+        }
         memberFileStore.saveMembers(store.getMembers());
     }
 }

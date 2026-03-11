@@ -37,6 +37,15 @@ public class PcSocketClient {
         return new SocketResponse(true, "시간이 충전되었습니다.");
     }
 
+    public List<MemberSnapshot> getAllMembers() {
+        return parseMembers(send("ALL_MEMBERS"));
+    }
+
+    public SocketResponse deleteMember(Long memberId) {
+        sendAndParseOk("DELETE_MEMBER|" + memberId, 2);
+        return new SocketResponse(true, "회원 탈퇴가 처리되었습니다.");
+    }
+
     public List<ProductSnapshot> getProducts() {
         return parseProducts(send("PRODUCTS"));
     }
@@ -124,6 +133,20 @@ public class PcSocketClient {
                         ProtocolCodec.decode(tokens[1]),
                         Integer.parseInt(tokens[2]),
                         Integer.parseInt(tokens[3])
+                ))
+                .toList();
+    }
+
+    private List<MemberSnapshot> parseMembers(String response) {
+        return parseRecords(response, 7).stream()
+                .map(tokens -> new MemberSnapshot(
+                        Long.parseLong(tokens[0]),
+                        ProtocolCodec.decode(tokens[1]),
+                        ProtocolCodec.decode(tokens[2]),
+                        ProtocolCodec.decode(tokens[3]),
+                        Integer.parseInt(tokens[4]),
+                        Integer.parseInt(tokens[5]),
+                        tokens[6]
                 ))
                 .toList();
     }

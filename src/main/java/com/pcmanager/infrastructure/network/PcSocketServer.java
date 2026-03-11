@@ -87,6 +87,8 @@ public class PcSocketServer {
                 case "ENTER" -> handleEnter(tokens);
                 case "REGISTER" -> handleRegister(tokens);
                 case "TOP_UP" -> handleTopUp(tokens);
+                case "ALL_MEMBERS" -> enqueueAllMembers();
+                case "DELETE_MEMBER" -> handleDeleteMember(tokens);
                 case "PRODUCTS" -> enqueueProducts();
                 case "SEAT" -> handleSeat(tokens);
                 case "ALL_SEATS" -> enqueueAllSeats();
@@ -124,6 +126,11 @@ public class PcSocketServer {
     private String handleTopUp(String[] tokens) {
         memberService.addRemainingMinutes(ProtocolCodec.decode(tokens[1]), Integer.parseInt(tokens[2]));
         return "OK|" + ProtocolCodec.encode("시간 충전 완료");
+    }
+
+    private String handleDeleteMember(String[] tokens) {
+        memberService.deleteMember(Long.parseLong(tokens[1]));
+        return "OK|" + ProtocolCodec.encode("회원 탈퇴 완료");
     }
 
     private String handleSeat(String[] tokens) {
@@ -201,6 +208,21 @@ public class PcSocketServer {
                 .reduce((a, b) -> a + ";" + b)
                 .orElse("");
         return "OK|" + products.size() + "|" + payload;
+    }
+
+    private String enqueueAllMembers() {
+        List<Member> members = memberService.getAllMembers();
+        String payload = members.stream()
+                .map(member -> member.getMemberId() + "," +
+                        ProtocolCodec.encode(member.getLoginId()) + "," +
+                        ProtocolCodec.encode(member.getName()) + "," +
+                        ProtocolCodec.encode(member.getPhone()) + "," +
+                        member.getRemainingMinutes() + "," +
+                        member.getPoint() + "," +
+                        member.getGrade())
+                .reduce((a, b) -> a + ";" + b)
+                .orElse("");
+        return "OK|" + members.size() + "|" + payload;
     }
 
     private String enqueueAllSeats() {

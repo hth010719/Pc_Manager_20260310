@@ -2,6 +2,7 @@ package com.pcmanager.presentation.counter;
 
 import com.pcmanager.common.exception.BusinessException;
 import com.pcmanager.common.util.DisplayText;
+import com.pcmanager.infrastructure.network.MemberSnapshot;
 import com.pcmanager.infrastructure.network.MessageSnapshot;
 import com.pcmanager.infrastructure.network.OrderSnapshot;
 import com.pcmanager.infrastructure.network.PcSocketClient;
@@ -14,6 +15,7 @@ import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
@@ -78,6 +80,12 @@ public class CounterPanel extends JPanel {
         panel.setBorder(BorderFactory.createTitledBorder("전체 좌석 현황"));
         panel.add(new JScrollPane(seatList), BorderLayout.CENTER);
 
+        JPanel southPanel = new JPanel(new BorderLayout(0, 8));
+
+        JButton memberListButton = new JButton("회원목록");
+        memberListButton.addActionListener(event -> openMemberDialog());
+        southPanel.add(memberListButton, BorderLayout.NORTH);
+
         JPanel actionPanel = new JPanel();
         actionPanel.setLayout(new BoxLayout(actionPanel, BoxLayout.Y_AXIS));
         actionPanel.add(new JLabel("선택한 좌석에 적용"));
@@ -101,7 +109,8 @@ public class CounterPanel extends JPanel {
         actionPanel.add(maintenanceButton);
         actionPanel.add(forceExitButton);
 
-        panel.add(actionPanel, BorderLayout.SOUTH);
+        southPanel.add(actionPanel, BorderLayout.CENTER);
+        panel.add(southPanel, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -128,11 +137,11 @@ public class CounterPanel extends JPanel {
 
         JPanel bottom = new JPanel();
         bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
-        bottom.add(new JLabel("답변할 좌석"));
+        bottom.add(new JLabel("메시지 보낼 좌석"));
         bottom.add(replySeatSelector);
         bottom.add(new JScrollPane(replyArea));
-        JButton replyButton = new JButton("답변 보내기");
-        replyButton.addActionListener(event -> sendReply());
+        JButton replyButton = new JButton("메시지 보내기");
+        replyButton.addActionListener(event -> sendCounterMessage());
         bottom.add(replyButton);
         panel.add(bottom, BorderLayout.SOUTH);
         return panel;
@@ -198,7 +207,7 @@ public class CounterPanel extends JPanel {
         executeWithRefresh("주문 처리 실패", () -> socketClient.changeOrderStatus(orderId, status));
     }
 
-    private void sendReply() {
+    private void sendCounterMessage() {
         Long seatId = resolveReplySeatId();
         String content = replyArea.getText().trim();
         if (seatId == null) {
@@ -208,7 +217,7 @@ public class CounterPanel extends JPanel {
         if (content.isEmpty()) {
             return;
         }
-        executeWithRefresh("답변 보내기 실패", () -> {
+        executeWithRefresh("메시지 보내기 실패", () -> {
             socketClient.sendReply(seatId, content);
             replyArea.setText("");
         });
@@ -221,7 +230,7 @@ public class CounterPanel extends JPanel {
         replyArea.getActionMap().put("send-reply", new javax.swing.AbstractAction() {
             @Override
             public void actionPerformed(ActionEvent event) {
-                sendReply();
+                sendCounterMessage();
             }
         });
         replyArea.getInputMap(JComponent.WHEN_FOCUSED).put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK), "insert-break");
@@ -309,6 +318,76 @@ public class CounterPanel extends JPanel {
         }
     }
 
+    private void openMemberDialog() {
+        DefaultListModel<MemberSnapshot> memberModel = new DefaultListModel<>();
+        JList<MemberSnapshot> memberList = new JList<>(memberModel);
+        memberList.setCellRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof MemberSnapshot member) {
+                    String name = member.name() == null || member.name().isBlank() ? "-" : member.name();
+                    setText("ID " + member.loginId() + " / 이름 " + name + " / 남은 시간 " + member.remainingMinutes() + "분");
+                }
+                return this;
+            }
+        });
+
+        JDialog dialog = new JDialog(JOptionPane.getFrameForComponent(this), "회원 목록", true);
+        dialog.setLayout(new BorderLayout(8, 8));
+        dialog.add(new JScrollPane(memberList), BorderLayout.CENTER);
+
+        JPanel buttonPanel = new JPanel();
+        JButton refreshButton = new JButton("새로고침");
+        JButton deleteButton = new JButton("회원탈퇴");
+        JButton closeButton = new JButton("닫기");
+        refreshButton.addActionListener(event -> loadMembers(memberModel));
+        deleteButton.addActionListener(event -> deleteSelectedMember(memberList, memberModel));
+        closeButton.addActionListener(event -> dialog.dispose());
+        buttonPanel.add(refreshButton);
+        buttonPanel.add(deleteButton);
+        buttonPanel.add(closeButton);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+        loadMembers(memberModel);
+        dialog.setSize(720, 420);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private void loadMembers(DefaultListModel<MemberSnapshot> memberModel) {
+        memberModel.clear();
+        for (MemberSnapshot member : socketClient.getAllMembers()) {
+            memberModel.addElement(member);
+        }
+    }
+
+    private void deleteSelectedMember(JList<MemberSnapshot> memberList, DefaultListModel<MemberSnapshot> memberModel) {
+        MemberSnapshot member = memberList.getSelectedValue();
+        if (member == null) {
+            JOptionPane.showMessageDialog(this, "탈퇴시킬 회원을 먼저 선택해 주세요.");
+            return;
+        }
+
+        int result = JOptionPane.showConfirmDialog(
+                this,
+                "'" + member.loginId() + "' 회원을 탈퇴시키겠습니까?",
+                "회원 탈퇴",
+                JOptionPane.YES_NO_OPTION
+        );
+        if (result != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        try {
+            socketClient.deleteMember(member.memberId());
+            loadMembers(memberModel);
+            refreshAll();
+        } catch (BusinessException exception) {
+            JOptionPane.showMessageDialog(this, exception.getMessage(), "회원 탈퇴 실패", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     private void reloadSeats(Long previousSelectedSeatId) {
         seatSnapshotMap.clear();
         seatIndexMap.clear();
@@ -349,7 +428,7 @@ public class CounterPanel extends JPanel {
             SeatSnapshot seat = seatSnapshotMap.get(message.seatId());
             String seatText = seat == null ? "좌석 ?" : "좌석 " + seat.seatNumber();
             String nickname = seat == null ? NO_USER : seat.userName();
-            messageModel.addElement(seatText + " / " + nickname + " / " + DisplayText.senderType(message.senderType()) + " / " + DisplayText.messageType(message.messageType()) + " / " + message.content());
+            messageModel.addElement(seatText + " / " + nickname + " / " + DisplayText.senderType(message.senderType()) + " / " + message.content());
             messageSeatIndexMap.put(messageIndex, message.seatId());
             messageIndex++;
         }
