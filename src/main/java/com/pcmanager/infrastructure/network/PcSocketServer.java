@@ -125,8 +125,10 @@ public class PcSocketServer {
     }
 
     private String handleTopUp(String[] tokens) {
-        memberService.addRemainingMinutes(ProtocolCodec.decode(tokens[1]), Integer.parseInt(tokens[2]));
-        return "OK|" + ProtocolCodec.encode("시간 충전 완료");
+        int chargedMinutes = Integer.parseInt(tokens[2]);
+        int appliedMinutes = memberService.addRemainingMinutes(ProtocolCodec.decode(tokens[1]), chargedMinutes);
+        int bonusMinutes = appliedMinutes - chargedMinutes;
+        return "OK|" + ProtocolCodec.encode("시간 충전 완료") + "|" + appliedMinutes + "|" + bonusMinutes;
     }
 
     private String handleDeleteMember(String[] tokens) {

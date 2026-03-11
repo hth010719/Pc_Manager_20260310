@@ -8,6 +8,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.function.Consumer;
@@ -26,6 +27,11 @@ public class CustomerSignupPanel extends JPanel {
         JPanel formPanel = new JPanel();
         formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
         formPanel.add(new JLabel("새 ID"));
+        Dimension loginFieldSize = loginIdField.getPreferredSize();
+        int fieldHeight = Math.max(24, loginFieldSize.height);
+        loginIdField.setPreferredSize(new Dimension(loginFieldSize.width, fieldHeight));
+        loginIdField.setMaximumSize(new Dimension(Integer.MAX_VALUE, fieldHeight));
+        loginIdField.setMinimumSize(new Dimension(80, fieldHeight));
         formPanel.add(loginIdField);
         formPanel.add(Box.createVerticalStrut(12));
 

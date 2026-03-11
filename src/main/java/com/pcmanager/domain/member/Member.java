@@ -10,9 +10,10 @@ public class Member {
     private int point;
     private final String grade;
     private final UserRole userRole;
+    private boolean firstChargeBonusAvailable;
 
     public Member(Long memberId, String loginId, String password, String name, String phone,
-                  int remainingMinutes, int point, String grade, UserRole userRole) {
+                  int remainingMinutes, int point, String grade, UserRole userRole, boolean firstChargeBonusAvailable) {
         this.memberId = memberId;
         this.loginId = loginId;
         this.password = password;
@@ -22,6 +23,7 @@ public class Member {
         this.point = point;
         this.grade = grade;
         this.userRole = userRole;
+        this.firstChargeBonusAvailable = firstChargeBonusAvailable;
     }
 
     public Long getMemberId() {
@@ -60,11 +62,25 @@ public class Member {
         return userRole;
     }
 
+    public boolean isFirstChargeBonusAvailable() {
+        return firstChargeBonusAvailable;
+    }
+
     public void addRemainingMinutes(int minutes) {
         remainingMinutes += minutes;
     }
 
     public void setRemainingMinutes(int remainingMinutes) {
         this.remainingMinutes = Math.max(remainingMinutes, 0);
+    }
+
+    public int applyChargeWithFirstBonus(int minutes, int bonusMinutes) {
+        int appliedMinutes = minutes;
+        if (firstChargeBonusAvailable) {
+            appliedMinutes += bonusMinutes;
+            firstChargeBonusAvailable = false;
+        }
+        addRemainingMinutes(appliedMinutes);
+        return appliedMinutes;
     }
 }

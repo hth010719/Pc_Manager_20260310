@@ -16,6 +16,8 @@ import java.util.List;
  * 변경이 생기면 MemberFileStore에 즉시 저장해 다음 실행에도 유지되게 한다.
  */
 public class MemberService {
+    private static final int FIRST_CHARGE_BONUS_MINUTES = 30;
+
     private final MemoryStore store;
     private final MemberFileStore memberFileStore;
 
@@ -69,7 +71,8 @@ public class MemberService {
                 0,
                 0,
                 "BRONZE",
-                UserRole.CUSTOMER
+                UserRole.CUSTOMER,
+                true
         );
         store.getMembers().add(member);
         memberFileStore.saveMembers(store.getMembers());
@@ -85,10 +88,15 @@ public class MemberService {
     /**
      * 고객 종료 시 남은 시간을 회원 계정에 다시 저장한다.
      */
-    public synchronized void addRemainingMinutes(String loginId, int minutes) {
+    public synchronized int addRemainingMinutes(String loginId, int minutes) {
         Member member = getByLoginId(loginId);
-        member.addRemainingMinutes(minutes);
+        int appliedMinutes = member.applyChargeWithFirstBonus(minutes, FIRST_CHARGE_BONUS_MINUTES);
         memberFileStore.saveMembers(store.getMembers());
+        return appliedMinutes;
+    }
+
+    public int getFirstChargeBonusMinutes() {
+        return FIRST_CHARGE_BONUS_MINUTES;
     }
 
     /**

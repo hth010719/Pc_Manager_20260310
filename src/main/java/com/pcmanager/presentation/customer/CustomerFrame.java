@@ -29,7 +29,8 @@ public class CustomerFrame extends JFrame {
         this.chargePanel = new CustomerChargePanel(this::chargeTime, this::showLoginCard);
         setTitle("PC Manager Customer");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(460, 260);
+        // 시간충전 카드까지 포함해도 버튼과 하단 이전 버튼이 잘리지 않도록 높이를 조금 더 준다.
+        setSize(460, 340);
         setLocationRelativeTo(null);
         cardPanel.add(loginPanel, "login");
         cardPanel.add(signupPanel, "signup");
@@ -90,8 +91,8 @@ public class CustomerFrame extends JFrame {
      */
     private void chargeTime(String loginId, int minutes, int price) {
         try {
-            client.chargeTime(loginId, minutes);
-            JOptionPane.showMessageDialog(this, minutes + "분 충전되었습니다. 금액은 " + price + "원입니다.");
+            String message = client.chargeTime(loginId, minutes).message();
+            JOptionPane.showMessageDialog(this, message + " 금액은 " + price + "원입니다.");
             loginPanel.setLoginId(loginId);
             showLoginCard();
         } catch (RuntimeException exception) {

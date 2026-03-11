@@ -89,9 +89,9 @@ public class CustomerPanel extends JPanel {
         eventArea.setLineWrap(true);
         eventArea.setWrapStyleWord(true);
         eventArea.setText("""
-                - 평일 오전 타임 1시간 추가 충전 시 10분 서비스
-                - 컵라면 + 음료 세트 주문 시 500원 할인
-                - 카운터 문의로 좌석 이동 요청 가능
+                - 첫 회원가입 후 첫 충전 시 30분 추가
+                - 먹거리 주문과 카운터 문의는 화면 버튼으로 바로 이용 가능
+                - 종료 전 남은 시간은 회원 계정에 다시 저장
                 """);
         panel.add(new JScrollPane(eventArea), BorderLayout.CENTER);
         return panel;

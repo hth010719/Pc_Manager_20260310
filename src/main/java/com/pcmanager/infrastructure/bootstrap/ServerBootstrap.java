@@ -31,8 +31,8 @@ public record ServerBootstrap(
         SeatService seatService = new SeatService(store);
         MemberFileStore memberFileStore = new MemberFileStore(Path.of("data", "members.txt"));
         List<Member> defaultMembers = List.of(
-                new Member(1L, "hong", "hashed_pw_1", "홍길동", "010-1111-2222", 120, 300, "SILVER", UserRole.CUSTOMER),
-                new Member(2L, "lee", "hashed_pw_2", "이영희", "010-2222-3333", 80, 150, "BRONZE", UserRole.CUSTOMER)
+                new Member(1L, "hong", "hashed_pw_1", "홍길동", "010-1111-2222", 120, 300, "SILVER", UserRole.CUSTOMER, false),
+                new Member(2L, "lee", "hashed_pw_2", "이영희", "010-2222-3333", 80, 150, "BRONZE", UserRole.CUSTOMER, false)
         );
         store.getMembers().addAll(memberFileStore.loadMembers(defaultMembers));
         long maxMemberId = store.getMembers().stream().mapToLong(Member::getMemberId).max().orElse(0L);

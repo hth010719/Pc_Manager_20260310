@@ -42,8 +42,13 @@ public class PcSocketClient {
     }
 
     public SocketResponse chargeTime(String loginId, int minutes) {
-        sendAndParseOk("TOP_UP|" + ProtocolCodec.encode(loginId) + "|" + minutes, 2);
-        return new SocketResponse(true, "시간이 충전되었습니다.");
+        String[] tokens = sendAndParseOk("TOP_UP|" + ProtocolCodec.encode(loginId) + "|" + minutes, 4);
+        int appliedMinutes = Integer.parseInt(tokens[2]);
+        int bonusMinutes = Integer.parseInt(tokens[3]);
+        if (bonusMinutes > 0) {
+            return new SocketResponse(true, minutes + "분 충전되었습니다. 첫 충전 이벤트로 " + bonusMinutes + "분이 추가되어 총 " + appliedMinutes + "분이 반영되었습니다.");
+        }
+        return new SocketResponse(true, appliedMinutes + "분 충전되었습니다.");
     }
 
     /**

@@ -31,7 +31,7 @@ public class MemberFileStore {
                     continue;
                 }
                 String[] tokens = line.split("\\|", -1);
-                if (tokens.length != 9) {
+                if (tokens.length != 9 && tokens.length != 10) {
                     throw new BusinessException("회원 파일 형식이 올바르지 않습니다.");
                 }
                 members.add(new Member(
@@ -43,7 +43,8 @@ public class MemberFileStore {
                         Integer.parseInt(tokens[5]),
                         Integer.parseInt(tokens[6]),
                         tokens[7],
-                        UserRole.valueOf(tokens[8])
+                        UserRole.valueOf(tokens[8]),
+                        tokens.length == 10 && Boolean.parseBoolean(tokens[9])
                 ));
             }
             return members;
@@ -65,7 +66,8 @@ public class MemberFileStore {
                             String.valueOf(member.getRemainingMinutes()),
                             String.valueOf(member.getPoint()),
                             member.getGrade(),
-                            member.getUserRole().name()))
+                            member.getUserRole().name(),
+                            String.valueOf(member.isFirstChargeBonusAvailable())))
                     .toList();
             Files.write(filePath, lines, StandardCharsets.UTF_8);
         } catch (IOException exception) {

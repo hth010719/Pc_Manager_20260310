@@ -26,8 +26,8 @@ public class CustomerChargePanel extends JPanel {
     private final JTextField loginIdField = new JTextField(16);
 
     public CustomerChargePanel(ChargeHandler onCharge, Runnable onBack) {
-        setLayout(new BorderLayout(12, 12));
-        setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
+        setLayout(new BorderLayout(12, 16));
+        setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
         JLabel titleLabel = new JLabel("시간충전");
         titleLabel.setFont(new Font("Dialog", Font.BOLD, 22));
@@ -37,7 +37,7 @@ public class CustomerChargePanel extends JPanel {
         centerPanel.setLayout(new BoxLayout(centerPanel, BoxLayout.Y_AXIS));
         centerPanel.add(new JLabel("ID"));
         centerPanel.add(loginIdField);
-        centerPanel.add(Box.createVerticalStrut(12));
+        centerPanel.add(Box.createVerticalStrut(10));
 
         JButton thirtyMinutesButton = new JButton("30분 (500원)");
         JButton oneHourButton = new JButton("1시간 (1000원)");
@@ -46,9 +46,9 @@ public class CustomerChargePanel extends JPanel {
         oneHourButton.addActionListener(event -> charge(onCharge, 60, 1000));
         twoHoursButton.addActionListener(event -> charge(onCharge, 120, 1800));
         centerPanel.add(thirtyMinutesButton);
-        centerPanel.add(Box.createVerticalStrut(8));
+        centerPanel.add(Box.createVerticalStrut(6));
         centerPanel.add(oneHourButton);
-        centerPanel.add(Box.createVerticalStrut(8));
+        centerPanel.add(Box.createVerticalStrut(6));
         centerPanel.add(twoHoursButton);
 
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
