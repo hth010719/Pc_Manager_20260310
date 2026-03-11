@@ -189,6 +189,7 @@ public class CustomerPanel extends JPanel {
         DefaultListModel<String> orderHistoryModel = new DefaultListModel<>();
         JList<String> orderHistoryList = new JList<>(orderHistoryModel);
 
+        // 고객 화면의 주문내역은 카운터 전체 주문내역과 다르게 "현재 세션에서 고객이 본 주문" 기준으로 표시된다.
         for (OrderSnapshot order : socketClient.getOrders(currentSeatId)) {
             orderHistoryModel.addElement(
                     "주문 #" + order.orderId()
@@ -218,6 +219,7 @@ public class CustomerPanel extends JPanel {
     }
 
     private String customerOrderStatusText(String status) {
+        // 고객 입장에서는 REQUESTED가 "카운터에 주문이 들어갔다"보다 "주문이 완료되었다"로 읽히는 편이 자연스럽다.
         if ("REQUESTED".equals(status)) {
             return "주문완료";
         }

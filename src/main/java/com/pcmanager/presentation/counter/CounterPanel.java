@@ -422,6 +422,9 @@ public class CounterPanel extends JPanel {
         orderModel.clear();
         orderIndexMap.clear();
         int orderIndex = 0;
+
+        // 주문 리스트 인덱스와 실제 orderId를 따로 매핑해두면
+        // 화면에 보여주는 문자열 형식이 바뀌어도 클릭한 주문을 안정적으로 찾을 수 있다.
         for (OrderSnapshot order : socketClient.getAllOrders()) {
             SeatSnapshot seat = seatSnapshotMap.get(order.seatId());
             String seatText = seat == null ? "좌석 정보 없음" : "좌석 " + seat.seatNumber();
