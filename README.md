@@ -1,510 +1,240 @@
 # PC Manager Java
 
-자바로 만드는 피시방 관리 시스템 지침서입니다.
-Swing 이용
-고객 입장은 실제 로컬 TCP 소켓 통신으로 처리
-현재 단계에서는 서버, 고객, 카운터를 별도 프로세스로 실행
+Swing 기반 PC방 관리 프로그램입니다.  
+서버, 고객 앱, 카운터 앱을 각각 별도 프로세스로 실행하며 로컬 TCP 소켓으로 통신합니다.
 
-## 1. 프로젝트 목표
+현재 구현 기준으로 다음 흐름이 동작합니다.
+- 고객 회원가입, 로그인, 시간충전
+- 신규 회원 첫 충전 시 30분 추가 이벤트
+- 좌석 입장, 남은 시간 확인, 종료 시 남은 시간 저장
+- 먹거리 주문, 장바구니, 주문내역 확인
+- 고객/카운터 메시지 송수신
+- 카운터 좌석 관리, 주문 상태 변경, 회원 목록 조회/탈퇴
 
-실제 피시방 운영에 가까운 흐름을 가진 관리 시스템을 만든다.
+## 실행 환경
 
-핵심 목표:
+- Java 17 이상 권장
+- macOS / Windows / Linux에서 실행 가능
+- 별도 DB 없이 메모리 + 파일 저장 방식 사용
 
-- 고객 PC에서 상품 주문 가능
-- 고객과 카운터 간 통신 메시지 가능
-- 로그인한 좌석의 남은 시간 확인 가능
-- 관리자에서 좌석, 회원, 결제, 주문, 시간 연장 관리 가능
-- 추후 DB, 네트워크, 결제 모듈을 붙여도 구조가 무너지지 않게 설계
+## 실행 방법
 
-## 2. 주요 사용자
+프로그램은 3개를 순서대로 실행하면 됩니다.
 
-### 고객
+1. 서버 실행
 
-- 회원 로그인 또는 비회원 사용
-- 남은 시간 확인
-- 시간 연장 요청
-- 음식/음료 주문
-- 카운터 호출
-- 1:1 문의 메시지 전송
+```bash
+./scripts/run-server.sh
+```
 
-### 카운터 직원
+2. 카운터 실행
 
-- 전체 좌석 상태 확인
-- 주문 접수 및 처리
-- 고객 문의 확인 및 응답
-- 시간 충전/연장 처리
-- 입실/퇴실 처리
+```bash
+./scripts/run-counter.sh
+```
 
-### 관리자
+3. 고객 앱 실행
 
-- 상품 등록/수정
-- 회원 관리
-- 매출 통계
-- 공지사항 관리
-- 시스템 설정
+```bash
+./scripts/run-customer.sh
+```
 
-## 3. 핵심 기능 목록
+컴파일만 확인하려면 아래 명령을 사용합니다.
 
-### 3.1 좌석 관리
+```bash
+./scripts/compile.sh
+```
 
-- 좌석 번호별 상태 표시
-- 상태 종류:
-  - 사용 가능
-  - 사용 중
-  - 청소 중
-  - 점검 중
-- 좌석별 현재 사용자, 시작 시간, 종료 예정 시간 조회
+## 현재 기능
 
-### 3.2 회원/비회원 관리
+### 고객 앱
 
-- 회원 가입
-- 로그인
-- 회원 등급 관리
-- 포인트 적립
-- 비회원 임시 사용 등록
-- 비회원 닉네임 입장
+- 로그인 화면에서 ID 입력 후 입장
+- 회원가입 가능
+- 시간충전 가능
+- 이벤트 안내 표시
+- 자리 정보 확인
+- 남은 시간 실시간 갱신
+- 종료하기 가능
+- 카운터 문의 메시지 전송 가능
+- 먹거리 주문 창 열기 가능
+- 주문내역 확인 가능
 
-### 3.3 시간 관리
+### 고객 시간충전
 
-- 선불 시간 충전
-- 후불 사용 시간 계산
-- 남은 시간 실시간 표시
-- 종료 10분/5분/1분 전 알림
-- 시간 종료 시 자동 잠금 또는 연장 안내
+- 30분 / 1시간 / 2시간 충전 버튼 제공
+- 신규 회원은 첫 충전 시 30분 추가 적용
+- 충전 완료 메시지에 실제 반영 시간 표시
 
-### 3.4 상품 주문
+### 먹거리 주문
 
-- 카테고리별 상품 조회
-- 장바구니
-- 주문 요청
-- 주문 상태 변경
-- 주문 취소 가능 여부 처리
+- 상단 카테고리 버튼 제공
+- `전체`, `식사류`, `면류`, `간식 및 튀김류`, `음료수`, `기타`
+- 장바구니 담기, 수량 조절, 총액 계산
+- 주문하기 시 서버로 실제 주문 저장
+- 고객은 주문내역에서 상태 확인 가능
 
-주문 상태 예시:
+주문 상태 표시
+- 고객 화면: `주문완료`, `주문 확인`, `전달 완료`
+- 카운터 화면: `주문 들어옴`, `주문 확인`, `전달 완료`
 
-- `REQUESTED`
-- `ACCEPTED`
-- `PREPARING`
-- `DELIVERING`
-- `COMPLETED`
-- `CANCELED`
+### 카운터 앱
 
-### 3.5 통신 메시지
+- 전체 좌석 현황 조회
+- 좌석 시간 추가
+- 좌석 상태 변경
+- 강제 종료
+- 회원 목록 조회
+- 회원 탈퇴
+- 주문 목록 조회
+- 주문 상태를 버튼으로 변경
+- 주문내역 초기화
+- 고객 메시지 조회
+- 카운터에서 먼저 메시지 발신 가능
 
-- 고객 -> 카운터 메시지 전송
-- 카운터 -> 고객 답변
-- 호출 유형 구분
+## 주문 메뉴 구성
 
-메시지 유형 예시:
+### 식사류
 
-- `CALL_STAFF`
-- `ASK_TIME`
-- `ORDER_INQUIRY`
-- `TECH_SUPPORT`
-- `GENERAL_CHAT`
+- 스팸 마요 덮밥
+- 치킨 마요 덮밥
+- 김치볶음밥
+- 삼겹살 정식
 
-### 3.6 결제
+### 면류
 
-- 현금
-- 카드
-- 회원 잔액
-- 포인트 사용
+- 짜계치
+- 라볶이
+- 신라면
+- 진라면
+- 참깨라면
 
-### 3.7 관리자 기능
+### 간식 및 튀김류
 
-- 상품 재고 관리
-- 공지 팝업 전송
-- 강제 로그아웃
-- 강제 종료/잠금
-- 일별 매출 조회
+- 소떡소떡
+- 치킨 가라아게
+- 감자튀김
+- 만두
 
-## 4. 추천 기술 방향
+### 음료수
 
-처음에는 데스크톱 기반으로 시작하는 것이 구현 난이도와 관리 측면에서 가장 현실적이다.
+- 콜라
+- 사이다
+- 아메리카노
+- 아이스티
 
-권장 1차 구성:
+### 기타
 
-- 언어: Java 17 이상
-- UI: JavaFX
-- DB: MySQL 또는 MariaDB
-- ORM/접근: JPA 또는 MyBatis
-- 빌드: IDE(IntelliJ) 또는 javac
-- 통신: TCP Socket
-- 직렬화: JSON
-- 로깅: SLF4J + Logback
+- 단무지 추가
+- 김치 추가
+- 공깃밥 추가
 
-학습 목적이고 빠르게 만드는 것이 우선이면:
+## 이미지 넣는 위치
 
-- UI: Java Swing
-- DB: SQLite
-- 통신: 로컬 TCP Socket 서버를 앱 내부에 띄우고 고객 화면은 소켓 클라이언트로 접속
-- 실행 구조: `ServerMain`, `CustomerMain`, `CounterMain` 분리
+주문창 이미지는 아래 폴더를 사용합니다.
 
-## 5. 권장 아키텍처
+```text
+assets/menu-images
+```
 
-초기부터 UI와 비즈니스 로직을 분리한다.
+지원 방식은 다음과 같습니다.
 
-### 계층 구조
+1. 바로 파일로 넣기
 
-- `presentation`
-  - 화면, 컨트롤러, 입력 처리
-- `application`
-  - 주문, 시간연장, 메시지 전송 같은 유스케이스
-- `domain`
-  - 핵심 엔티티와 규칙
-- `infrastructure`
-  - DB, 소켓, 외부 API, 파일 저장
+```text
+assets/menu-images/1.png
+assets/menu-images/14.jpg
+```
 
-### 권장 패키지 구조
+2. 상품 ID 폴더 안에 넣기
+
+```text
+assets/menu-images/1/image.png
+assets/menu-images/1/아무이름.jpeg
+```
+
+현재 코드는 아래 확장자를 읽습니다.
+- `.png`
+- `.jpg`
+- `.jpeg`
+
+이미지가 없으면 주문창에 `이미지 준비중`이 표시됩니다.
+
+상품 ID 기준:
+- `1` 스팸 마요 덮밥
+- `2` 치킨 마요 덮밥
+- `3` 김치볶음밥
+- `4` 삼겹살 정식
+- `5` 짜계치
+- `6` 라볶이
+- `7` 신라면
+- `8` 진라면
+- `9` 참깨라면
+- `10` 소떡소떡
+- `11` 치킨 가라아게
+- `12` 감자튀김
+- `13` 만두
+- `14` 콜라
+- `15` 사이다
+- `16` 아메리카노
+- `17` 아이스티
+- `18` 단무지 추가
+- `19` 김치 추가
+- `20` 공깃밥 추가
+
+## 데이터 저장
+
+현재는 파일 저장과 메모리 저장을 함께 사용합니다.
+
+- 회원 정보: `data/members.txt`
+- 주문/좌석/메시지: 실행 중 메모리 관리
+
+참고:
+- 고객이 종료하면 해당 좌석의 고객용 주문내역은 비워집니다.
+- 카운터 주문내역은 `초기화` 버튼으로 전체 삭제할 수 있습니다.
+
+## 프로젝트 구조
 
 ```text
 src/main/java/com/pcmanager
-├── Main.java
-├── common
-│   ├── config
-│   ├── exception
-│   ├── util
-│   └── constant
-├── domain
-│   ├── seat
+├── application
 │   ├── member
+│   ├── message
+│   ├── order
+│   └── seat
+├── common
+│   ├── exception
+│   └── util
+├── domain
+│   ├── member
+│   ├── message
 │   ├── order
 │   ├── product
-│   ├── payment
-│   ├── message
-│   └── time
-├── application
-│   ├── seat
-│   ├── member
-│   ├── order
-│   ├── payment
-│   ├── message
-│   └── admin
+│   └── seat
 ├── infrastructure
-│   ├── persistence
+│   ├── bootstrap
 │   ├── network
-│   ├── security
-│   └── notification
+│   └── persistence
 └── presentation
-    ├── customer
     ├── counter
-    └── admin
+    └── customer
 ```
 
-## 6. 핵심 도메인 설계
+## 주요 시작 클래스
 
-### Seat
+- 서버: `com.pcmanager.ServerMain`
+- 카운터: `com.pcmanager.CounterMain`
+- 고객: `com.pcmanager.CustomerMain`
 
-- `seatId`
-- `seatNumber`
-- `status`
-- `currentUserId`
-- `loginTime`
-- `expectedEndTime`
+## 네트워크 방식
 
-### Member
+- 서버와 클라이언트는 로컬 TCP 소켓으로 통신
+- 기본 포트: `5050`
+- 문자열 프로토콜 사용
+- 구분자 충돌 방지를 위해 문자열 일부는 Base64 인코딩
 
-- `memberId`
-- `loginId`
-- `password`
-- `name`
-- `phone`
-- `remainingMinutes`
-- `point`
-- `grade`
+## 참고 사항
 
-### Product
-
-- `productId`
-- `categoryId`
-- `name`
-- `price`
-- `stock`
-- `saleStatus`
-
-### Order
-
-- `orderId`
-- `seatId`
-- `memberId`
-- `orderItems`
-- `totalPrice`
-- `orderStatus`
-- `requestedAt`
-
-### Message
-
-- `messageId`
-- `seatId`
-- `senderType`
-- `messageType`
-- `content`
-- `readYn`
-- `sentAt`
-
-### Payment
-
-- `paymentId`
-- `targetType`
-- `targetId`
-- `paymentMethod`
-- `amount`
-- `paidAt`
-
-## 7. DB 테이블 초안
-
-최소 테이블:
-
-- `seats`
-- `members`
-- `products`
-- `product_categories`
-- `orders`
-- `order_items`
-- `messages`
-- `payments`
-- `time_charges`
-- `notices`
-
-관계 예시:
-
-- `orders` 1:N `order_items`
-- `members` 1:N `orders`
-- `seats` 1:N `orders`
-- `seats` 1:N `messages`
-
-## 8. 화면 구성 제안
-
-### 고객 화면
-
-- 로그인 화면
-- 메인 홈
-- 남은 시간 패널
-- 상품 주문 화면
-- 메시지/호출 화면
-- 공지사항 팝업
-
-### 카운터 화면
-
-- 전체 좌석 현황판
-- 주문 관리 패널
-- 메시지 응답 패널
-- 회원 검색/충전 화면
-- 매출 처리 화면
-
-### 관리자 화면
-
-- 상품 관리
-- 회원 관리
-- 통계 대시보드
-- 시스템 설정
-
-## 9. 통신 메시지 규격 예시
-
-소켓 통신은 최종적으로 JSON 형태로 통일하는 것이 좋다.
-
-```json
-{
-  "type": "ORDER_CREATE",
-  "requestId": "req-20260310-0001",
-  "seatId": 12,
-  "memberId": 1001,
-  "payload": {
-    "items": [
-      { "productId": 1, "quantity": 2 }
-    ]
-  },
-  "sentAt": "2026-03-10T10:00:00"
-}
-```
-
-메시지 타입 예시:
-
-- `LOGIN`
-- `LOGOUT`
-- `REMAINING_TIME_REQUEST`
-- `TIME_EXTEND_REQUEST`
-- `ORDER_CREATE`
-- `ORDER_CANCEL`
-- `MESSAGE_SEND`
-- `NOTICE_PUSH`
-- `SEAT_STATUS_UPDATE`
-
-현재 MVP 구현은 텍스트 기반 프로토콜로 먼저 동작한다.
-
-- 고객 입장 요청: `ENTER|nickname`
-- 서버 성공 응답: `OK|입장 완료|seatId|seatNumber|nickname`
-- 서버 실패 응답: `ERROR|reason`
-
-현재 적용된 실제 흐름:
-
-1. 고객이 Swing 화면에서 닉네임 입력
-2. 고객 화면이 로컬 소켓 서버(`127.0.0.1:5050`)로 입장 요청 전송
-3. 서버가 빈 좌석을 찾아 배정
-4. 카운터 화면 좌석 현황에 즉시 반영
-5. 배정된 좌석 기준으로 주문/메시지/남은 시간 관리
-
-추가로 현재 구현된 소켓 명령:
-
-- `PRODUCTS`
-- `SEAT|seatId`
-- `ALL_SEATS`
-- `ORDER|seatId|productId|quantity`
-- `ORDERS|seatId`
-- `ALL_ORDERS`
-- `ADVANCE_ORDER|orderId`
-- `MESSAGE|seatId|messageType|base64Content`
-- `REPLY|seatId|base64Content`
-- `MESSAGES|seatId`
-- `ALL_MESSAGES`
-- `EXTEND|seatId|minutes`
-
-## 10. 업무 흐름 예시
-
-### 상품 주문 흐름
-
-1. 고객이 상품 선택
-2. 고객 PC에서 주문 요청 전송
-3. 카운터 서버가 주문 생성
-4. 카운터 화면에 새 주문 표시
-5. 직원이 주문 수락
-6. 조리/준비 상태 변경
-7. 전달 완료 처리
-
-### 메시지 흐름
-
-1. 고객이 문의 유형 선택
-2. 메시지 입력 후 전송
-3. 카운터 화면 알림 발생
-4. 직원 응답 작성
-5. 고객 화면에 답변 표시
-
-### 시간 관리 흐름
-
-1. 로그인 시 시작 시간 기록
-2. 분 단위 또는 초 단위로 남은 시간 계산
-3. 임계 시간에서 알림 표시
-4. 시간이 0이 되면 잠금 또는 연장 요청 팝업 표시
-
-## 11. 개발 우선순위
-
-처음부터 전부 만들지 말고 아래 순서로 나누는 것이 맞다.
-
-### 1단계: 로컬 단일 프로그램
-
-- 좌석 관리
-- 닉네임 기반 입장
-- 남은 시간 계산
-- 상품 목록/주문
-- 메시지 등록
-- 로컬 TCP 소켓 입장 처리
-
-목표:
-
-- DB 없이 메모리 기반으로 먼저 동작
-
-### 2단계: DB 연동
-
-- 회원, 상품, 주문 저장
-- 로그인 데이터 유지
-- 주문 내역 조회
-
-### 3단계: 실제 통신
-
-- 고객 프로그램과 카운터 프로그램 분리
-- TCP 소켓 통신 연결
-- 실시간 주문/메시지 반영
-- 고객 화면은 서버 메모리를 직접 참조하지 않음
-- 카운터 화면도 서버 스냅샷을 소켓으로 조회
-
-### 4단계: 관리자 기능 강화
-
-- 매출 통계
-- 재고 관리
-- 공지 전송
-- 권한 분리
-
-## 12. 구현 시 중요한 규칙
-
-- UI 코드에서 DB 직접 접근 금지
-- 주문/결제/시간 계산은 서비스 계층에서 처리
-- 상태값은 문자열 하드코딩 대신 `enum` 사용
-- 시간 계산은 `LocalDateTime`, `Duration` 사용
-- 금액은 `int` 또는 `long`으로 관리
-- 비밀번호는 평문 저장 금지
-- 예외 메시지와 사용자 표시 메시지 분리
-
-## 13. 추천 enum 예시
-
-- `SeatStatus`
-- `OrderStatus`
-- `MessageType`
-- `PaymentMethod`
-- `UserRole`
-- `SaleStatus`
-
-## 14. 최소 MVP 범위
-
-처음 완성 목표는 아래 정도가 적당하다.
-
-- 닉네임 기반 고객 입장
-- 소켓 서버를 통한 좌석 입실
-- 남은 시간 표시
-- 상품 주문
-- 카운터 주문 확인
-- 고객/카운터 메시지 송수신
-- 고객 앱 / 카운터 앱 분리 실행
-
-이 범위까지만 먼저 완성하면 "피시방 관리 시스템처럼 보이는" 핵심은 나온다.
-
-## 15. 다음 작업 추천
-
-바로 시작하려면 아래 순서로 진행한다.
-
-1. Java 프로젝트 구조 생성
-2. `domain`, `application`, `presentation` 패키지 생성
-3. 좌석/회원/주문/메시지 도메인 클래스 작성
-4. 메모리 기반 저장소 구현
-5. 고객 화면, 카운터 화면 초안 구현
-6. 이후 DB와 소켓 통신 연결
-
-## 16. 추가로 만들면 좋은 문서
-
-- `docs/requirements.md`
-- `docs/use-cases.md`
-- `docs/db-schema.md`
-- `docs/protocol.md`
-- `docs/ui-wireframe.md`
-
-원하면 다음 단계로 바로
-
-- 자바 프로젝트 기본 폴더 구조 생성
-- 클래스 뼈대 생성
-- DB 스키마 초안 생성
-- 고객용/카운터용 화면 설계
-
-까지 이어서 만들 수 있다.
-
-## 17. 실행 방법
-
-서버를 먼저 실행한 뒤 고객/카운터를 각각 실행한다.
-
-```bash
-java -cp src/main/java com.pcmanager.ServerMain
-```
-
-```bash
-java -cp src/main/java com.pcmanager.CustomerMain
-```
-
-```bash
-java -cp src/main/java com.pcmanager.CounterMain
-```
-
-권장 다음 단계:
-
-1. 주문/메시지 응답을 JSON 프로토콜로 교체
-2. SQLite 또는 MySQL 저장소 연결
-3. 회원 로그인과 비회원 닉네임 입장 분기
-4. 서버와 클라이언트 간 지속 연결 또는 이벤트 푸시 도입
+- 서버를 먼저 실행하지 않으면 고객/카운터 앱에서 연결 오류가 발생합니다.
+- 이미지 변경 후에는 주문창을 다시 열어야 새 이미지가 반영됩니다.
+- 기존 회원 파일은 호환되며, 신규 회원부터 첫 충전 보너스 상태가 함께 저장됩니다.
