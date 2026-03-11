@@ -8,6 +8,12 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import java.awt.CardLayout;
 
+/**
+ * 고객용 첫 진입 프레임이다.
+ *
+ * 로그인, 회원가입, 시간충전 화면을 CardLayout으로 묶고
+ * 성공 시 실제 사용 화면인 CustomerDashboardFrame으로 넘긴다.
+ */
 public class CustomerFrame extends JFrame {
     private final PcSocketClient client;
     private final CardLayout cardLayout = new CardLayout();
@@ -31,6 +37,9 @@ public class CustomerFrame extends JFrame {
         setContentPane(cardPanel);
     }
 
+    /**
+     * 로그인 ID로 입장 요청을 보내고, 성공 시 대시보드 프레임으로 화면을 교체한다.
+     */
     private void enterWithLoginId(String loginId) {
         try {
             EnterSeatSnapshot response = client.enterByLoginId(loginId);
@@ -42,6 +51,9 @@ public class CustomerFrame extends JFrame {
         }
     }
 
+    /**
+     * 간단 회원가입 후 바로 로그인 화면으로 복귀시켜 같은 ID로 이어서 입장할 수 있게 한다.
+     */
     private void registerMember(String loginId) {
         try {
             client.registerMember(loginId);
@@ -65,11 +77,17 @@ public class CustomerFrame extends JFrame {
         cardLayout.show(cardPanel, "charge");
     }
 
+    /**
+     * 고객 좌석 종료 후 다시 로그인 프레임을 새로 띄우는 콜백이다.
+     */
     private void showLoginFrameAgain() {
         CustomerFrame frame = new CustomerFrame(client);
         frame.setVisible(true);
     }
 
+    /**
+     * 충전 요청은 서버에 남은 시간만 반영하고, 결제 금액 문구는 클라이언트 화면에서 안내한다.
+     */
     private void chargeTime(String loginId, int minutes, int price) {
         try {
             client.chargeTime(loginId, minutes);

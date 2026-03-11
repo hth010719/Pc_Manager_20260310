@@ -11,6 +11,12 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Font;
 
+/**
+ * 비로그인 상태에서 회원 시간을 충전하는 패널이다.
+ *
+ * 실제 서버 호출은 외부에서 주입한 ChargeHandler가 처리하고,
+ * 이 패널은 입력값 수집과 버튼 이벤트 연결만 담당한다.
+ */
 public class CustomerChargePanel extends JPanel {
     @FunctionalInterface
     public interface ChargeHandler {
@@ -54,6 +60,9 @@ public class CustomerChargePanel extends JPanel {
         add(footerPanel, BorderLayout.SOUTH);
     }
 
+    /**
+     * 입력된 ID가 있을 때만 선택한 분량과 금액을 콜백으로 전달한다.
+     */
     private void charge(ChargeHandler onCharge, int minutes, int price) {
         String loginId = loginIdField.getText().trim();
         if (loginId.isEmpty()) {

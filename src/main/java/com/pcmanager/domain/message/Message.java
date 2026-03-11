@@ -2,6 +2,9 @@ package com.pcmanager.domain.message;
 
 import java.time.LocalDateTime;
 
+/**
+ * 좌석 기준으로 오가는 고객/카운터 메시지 1건을 표현하는 도메인 객체다.
+ */
 public class Message {
     private final Long messageId;
     private final Long seatId;

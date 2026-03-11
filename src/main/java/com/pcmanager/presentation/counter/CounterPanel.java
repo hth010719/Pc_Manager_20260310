@@ -33,6 +33,12 @@ import java.awt.event.MouseAdapter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * 카운터 업무를 한 화면에서 처리하는 메인 패널이다.
+ *
+ * 좌석 관리, 주문 상태 변경, 고객 메시지 응답, 회원 탈퇴를 모두 여기서 다룬다.
+ * 서버 상태와 최대한 맞춰 보여주기 위해 1초 주기로 전체 데이터를 다시 불러온다.
+ */
 public class CounterPanel extends JPanel {
     private static final String NO_USER = "-";
     private static final String REQUIRE_SEAT_MESSAGE = "먼저 좌석을 클릭해 주세요.";
@@ -71,10 +77,14 @@ public class CounterPanel extends JPanel {
         add(content, BorderLayout.CENTER);
 
         refreshAll();
+        // 카운터는 실시간성이 중요하므로 1초 주기로 좌석/주문/메시지를 다시 동기화한다.
         Timer timer = new Timer(1000, event -> refreshAll());
         timer.start();
     }
 
+    /**
+     * 좌석 현황 목록과 좌석 제어 버튼 영역을 만든다.
+     */
     private JPanel createSeatPanel() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createTitledBorder("전체 좌석 현황"));
@@ -114,6 +124,10 @@ public class CounterPanel extends JPanel {
         return panel;
     }
 
+    /**
+     * 주문 목록과 상태 변경 버튼을 묶는 패널이다.
+     * 상태 변경은 목록에서 주문을 선택한 뒤 하단 버튼으로만 처리한다.
+     */
     private JPanel createOrderPanel() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createTitledBorder("주문 관리"));
@@ -135,6 +149,9 @@ public class CounterPanel extends JPanel {
         return panel;
     }
 
+    /**
+     * 고객 메시지 목록과 카운터 발신 입력 영역을 구성한다.
+     */
     private JPanel createMessagePanel() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBorder(BorderFactory.createTitledBorder("고객 메시지"));
@@ -152,6 +169,9 @@ public class CounterPanel extends JPanel {
         return panel;
     }
 
+    /**
+     * 현재 선택한 좌석에 시간을 추가한다.
+     */
     private void addTime(int minutes) {
         Long seatId = requireSelectedSeatId();
         if (seatId == null) {
@@ -160,6 +180,9 @@ public class CounterPanel extends JPanel {
         executeWithRefresh("시간 더하기 실패", () -> socketClient.extendTime(seatId, minutes));
     }
 
+    /**
+     * 선택 좌석을 즉시 종료시키는 관리자 동작이다.
+     */
     private void forceExit() {
         Long seatId = requireSelectedSeatId();
         if (seatId == null) {
@@ -172,6 +195,9 @@ public class CounterPanel extends JPanel {
         executeWithRefresh("강제 종료 실패", () -> socketClient.forceExit(seatId));
     }
 
+    /**
+     * 선택 좌석 상태를 빈좌석/청소/점검으로 강제 변경한다.
+     */
     private void changeSeatStatus(String status) {
         Long seatId = requireSelectedSeatId();
         if (seatId == null) {
@@ -180,6 +206,9 @@ public class CounterPanel extends JPanel {
         executeWithRefresh("좌석 상태 변경 실패", () -> socketClient.changeSeatStatus(seatId, status));
     }
 
+    /**
+     * 목록에서 고른 주문의 상태를 하단 버튼으로 바꾼다.
+     */
     private void changeSelectedOrderStatus(String status) {
         Long orderId = getSelectedOrderId();
         if (orderId == null) {
@@ -189,6 +218,10 @@ public class CounterPanel extends JPanel {
         executeWithRefresh("주문 처리 실패", () -> socketClient.changeOrderStatus(orderId, status));
     }
 
+    /**
+     * 카운터 주문내역 전체를 초기화한다.
+     * 고객 쪽 과거 주문 숨김과는 별도로, 관리 화면에서 전체 기록을 비우는 용도다.
+     */
     private void clearOrders() {
         int result = JOptionPane.showConfirmDialog(this, "카운터 주문내역을 모두 초기화할까요?", "주문내역 초기화", JOptionPane.YES_NO_OPTION);
         if (result != JOptionPane.YES_OPTION) {
@@ -197,6 +230,10 @@ public class CounterPanel extends JPanel {
         executeWithRefresh("주문내역 초기화 실패", socketClient::clearOrders);
     }
 
+    /**
+     * 카운터에서 먼저 고객에게 메시지를 보낸다.
+     * 현재 선택 좌석이 사용 중이면 그 좌석을 우선 사용하고, 아니면 콤보박스 선택값을 사용한다.
+     */
     private void sendCounterMessage() {
         Long seatId = resolveReplySeatId();
         String content = replyArea.getText().trim();
@@ -213,6 +250,9 @@ public class CounterPanel extends JPanel {
         });
     }
 
+    /**
+     * Enter는 전송, Shift+Enter는 줄바꿈으로 동작하도록 입력 규칙을 바꾼다.
+     */
     private void configureReplyArea() {
         replyArea.setLineWrap(true);
         replyArea.setWrapStyleWord(true);
@@ -232,6 +272,9 @@ public class CounterPanel extends JPanel {
         });
     }
 
+    /**
+     * 메시지 목록을 더블클릭하면 해당 좌석을 답장 대상 콤보박스에 자동 반영한다.
+     */
     private void configureMessageList() {
         messageList.addMouseListener(new MouseAdapter() {
             @Override
@@ -247,6 +290,9 @@ public class CounterPanel extends JPanel {
         });
     }
 
+    /**
+     * 좌석 목록 선택이 바뀌면 관리 콤보박스와 메시지 대상 콤보박스도 같은 좌석으로 동기화한다.
+     */
     private void configureSeatList() {
         seatList.addListSelectionListener(event -> {
             if (event.getValueIsAdjusting()) {
@@ -260,6 +306,9 @@ public class CounterPanel extends JPanel {
         });
     }
 
+    /**
+     * 현재 구현에서는 주문 선택 자체만 추적하면 충분하므로, 선택 이벤트에서 orderId 캐시를 확인만 한다.
+     */
     private void configureOrderList() {
         orderList.addListSelectionListener(event -> {
             if (event.getValueIsAdjusting()) {
@@ -269,6 +318,9 @@ public class CounterPanel extends JPanel {
         });
     }
 
+    /**
+     * 좌석 선택이 필수인 동작에서 공통으로 사용하는 검증 메서드다.
+     */
     private Long requireSelectedSeatId() {
         Long seatId = getSelectedSeatId();
         if (seatId == null) {
@@ -277,6 +329,10 @@ public class CounterPanel extends JPanel {
         return seatId;
     }
 
+    /**
+     * 서버 작업 성공 후 전체 화면을 다시 동기화하고,
+     * 업무 오류는 공통 다이얼로그로 보여준다.
+     */
     private void executeWithRefresh(String title, Runnable action) {
         try {
             action.run();
@@ -302,6 +358,11 @@ public class CounterPanel extends JPanel {
         return orderIndexMap.get(selectedIndex);
     }
 
+    /**
+     * 답장 대상 좌석 결정 우선순위:
+     * 1. 현재 선택한 좌석이 사용 중이면 그 좌석
+     * 2. 아니면 콤보박스에서 직접 고른 좌석
+     */
     private Long resolveReplySeatId() {
         Long selectedSeatId = getSelectedSeatId();
         if (selectedSeatId != null) {
@@ -313,6 +374,9 @@ public class CounterPanel extends JPanel {
         return (Long) replySeatSelector.getSelectedItem();
     }
 
+    /**
+     * 화면 전체 데이터를 다시 불러와 좌석/주문/메시지 영역을 갱신한다.
+     */
     private void refreshAll() {
         try {
             Long previousSelectedSeatId = getSelectedSeatId();
@@ -325,6 +389,9 @@ public class CounterPanel extends JPanel {
         }
     }
 
+    /**
+     * 회원 목록 다이얼로그를 열고 조회/탈퇴 동작을 연결한다.
+     */
     private void openMemberDialog() {
         DefaultListModel<MemberSnapshot> memberModel = new DefaultListModel<>();
         JList<MemberSnapshot> memberList = new JList<>(memberModel);
@@ -362,6 +429,9 @@ public class CounterPanel extends JPanel {
         dialog.setVisible(true);
     }
 
+    /**
+     * 서버의 전체 회원 목록을 다이얼로그 리스트 모델에 채운다.
+     */
     private void loadMembers(DefaultListModel<MemberSnapshot> memberModel) {
         memberModel.clear();
         for (MemberSnapshot member : socketClient.getAllMembers()) {
@@ -369,6 +439,9 @@ public class CounterPanel extends JPanel {
         }
     }
 
+    /**
+     * 다이얼로그에서 선택한 회원을 탈퇴 처리한다.
+     */
     private void deleteSelectedMember(JList<MemberSnapshot> memberList, DefaultListModel<MemberSnapshot> memberModel) {
         MemberSnapshot member = memberList.getSelectedValue();
         if (member == null) {
@@ -395,6 +468,9 @@ public class CounterPanel extends JPanel {
         }
     }
 
+    /**
+     * 좌석 목록을 다시 만들고, 가능한 경우 기존 선택 좌석도 복원한다.
+     */
     private void reloadSeats(Long previousSelectedSeatId) {
         seatSnapshotMap.clear();
         seatIndexMap.clear();
@@ -417,6 +493,9 @@ public class CounterPanel extends JPanel {
         restoreSelectedSeat(previousSelectedSeatId);
     }
 
+    /**
+     * 전체 주문을 다시 읽어 화면 문자열과 실제 orderId 매핑을 동시에 갱신한다.
+     */
     private void reloadOrders() {
         Long previousSelectedOrderId = getSelectedOrderId();
         orderModel.clear();
@@ -435,6 +514,9 @@ public class CounterPanel extends JPanel {
         restoreSelectedOrder(previousSelectedOrderId);
     }
 
+    /**
+     * 전체 메시지를 좌석 정보와 합쳐 사람이 읽기 쉬운 문자열로 만든다.
+     */
     private void reloadMessages() {
         messageModel.clear();
         int messageIndex = 0;
@@ -448,6 +530,9 @@ public class CounterPanel extends JPanel {
         }
     }
 
+    /**
+     * 새로고침 후에도 가능하면 이전에 보던 좌석을 다시 선택한다.
+     */
     private void restoreSelectedSeat(Long selectedSeatId) {
         if (selectedSeatId == null) {
             if (!seatIndexMap.isEmpty()) {
@@ -466,6 +551,9 @@ public class CounterPanel extends JPanel {
         }
     }
 
+    /**
+     * 주문 목록 갱신 후에도 이전에 선택한 주문을 최대한 유지한다.
+     */
     private void restoreSelectedOrder(Long selectedOrderId) {
         if (selectedOrderId == null) {
             if (!orderIndexMap.isEmpty()) {
@@ -484,6 +572,9 @@ public class CounterPanel extends JPanel {
         }
     }
 
+    /**
+     * 좌석 ID를 좌석 번호 기반 표시 문자열로 바꿔주는 콤보박스 렌더러다.
+     */
     private final class SeatAwareRenderer extends DefaultListCellRenderer {
         private final String prefix;
 

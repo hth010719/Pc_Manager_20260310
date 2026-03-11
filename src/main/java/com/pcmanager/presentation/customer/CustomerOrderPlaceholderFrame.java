@@ -166,12 +166,18 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         refreshCart();
     }
 
+    /**
+     * 카테고리 맵을 한 번만 만들어 이후 필터링 시 반복 분류 비용이 들지 않게 한다.
+     */
     private void initializeCategoryMap() {
         for (MenuItemData item : menuItems) {
             menuItemsByCategory.computeIfAbsent(item.category(), key -> new java.util.ArrayList<>()).add(item);
         }
     }
 
+    /**
+     * 주문창 첫 진입 시 자주 쓰는 두 가지 대표 이미지 크기를 미리 캐시에 넣는다.
+     */
     private void preloadMenuImageCache() {
         for (List<MenuItemData> items : menuItemsByCategory.values()) {
             for (MenuItemData item : items) {
@@ -555,6 +561,9 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         refreshCart();
     }
 
+    /**
+     * 장바구니 전체를 비우고 우측 패널을 즉시 다시 그린다.
+     */
     private void clearCart() {
         if (cartItems.isEmpty()) {
             return;
@@ -588,6 +597,10 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         }
     }
 
+    /**
+     * 현재 장바구니 상태를 우측 패널에 다시 렌더링한다.
+     * 항목이 없으면 빈 상태 문구를, 있으면 각 상품 패널과 총액을 보여준다.
+     */
     private void refreshCart() {
         cartItemsPanel.removeAll();
 
@@ -659,6 +672,10 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         return itemPanel;
     }
 
+    /**
+     * 장바구니 수량 증감 처리다.
+     * 0 이하가 되면 해당 항목을 제거한다.
+     */
     private void changeCartQuantity(MenuItemData item, int delta) {
         int nextQuantity = cartItems.getOrDefault(item, 0) + delta;
         if (nextQuantity <= 0) {
@@ -669,12 +686,18 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         refreshCart();
     }
 
+    /**
+     * 장바구니 총액을 실시간 계산한다.
+     */
     private int calculateTotalPrice() {
         return cartItems.entrySet().stream()
                 .mapToInt(entry -> entry.getKey().price() * entry.getValue())
                 .sum();
     }
 
+    /**
+     * 0원 상품은 "무료", 그 외는 한국식 천 단위 구분 문자열로 표시한다.
+     */
     private String formatPrice(int price) {
         if (price == 0) {
             return "무료";
@@ -758,6 +781,9 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         return directPath;
     }
 
+    /**
+     * 현재는 png/jpg/jpeg만 메뉴 이미지로 허용한다.
+     */
     private boolean isSupportedImageFile(String fileName) {
         String lower = fileName.toLowerCase(Locale.ROOT);
         return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg");
@@ -785,6 +811,9 @@ public class CustomerOrderPlaceholderFrame extends JFrame {
         return Path.of("assets", "menu-images");
     }
 
+    /**
+     * 시작 경로에서 부모 방향으로 올라가며 assets/menu-images 폴더를 찾는다.
+     */
     private static Path findMenuImageDir(Path startPath) {
         Path current = Files.isDirectory(startPath) ? startPath : startPath.getParent();
         while (current != null) {

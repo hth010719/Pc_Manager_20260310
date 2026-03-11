@@ -1,9 +1,18 @@
 package com.pcmanager.common.util;
 
+/**
+ * 서버 내부 코드값을 화면 표시용 한글 문구로 바꾸는 유틸리티다.
+ *
+ * UI에서는 enum/상수값을 직접 노출하지 않고 이 클래스만 통해 변환한다.
+ * 덕분에 문구 정책이 바뀌어도 화면 곳곳을 직접 수정하지 않아도 된다.
+ */
 public final class DisplayText {
     private DisplayText() {
     }
 
+    /**
+     * 좌석 상태 코드를 카운터/고객 화면용 한글 텍스트로 변환한다.
+     */
     public static String seatStatus(String value) {
         return switch (value) {
             case "AVAILABLE" -> "빈좌석";
@@ -14,6 +23,9 @@ public final class DisplayText {
         };
     }
 
+    /**
+     * 주문 상태 코드를 표시용 텍스트로 변환한다.
+     */
     public static String orderStatus(String value) {
         return switch (value) {
             case "REQUESTED" -> "주문 들어옴";
@@ -26,6 +38,9 @@ public final class DisplayText {
         };
     }
 
+    /**
+     * 고객 메시지 타입 코드를 한글 라벨로 변환한다.
+     */
     public static String messageType(String value) {
         return switch (value) {
             case "CALL_STAFF" -> "직원 호출";
@@ -37,6 +52,9 @@ public final class DisplayText {
         };
     }
 
+    /**
+     * 메시지 발신 주체를 고객/카운터 문구로 바꾼다.
+     */
     public static String senderType(String value) {
         return switch (value) {
             case "CUSTOMER" -> "고객";
